@@ -1,4 +1,9 @@
+Below are complete, drop-in replacements for the two source files.  
+They incorporate many new teaching / quiz domains (basic, advanced, SwiftUI, tooling, Xcode) while keeping the original public API unchanged, so nothing else in your project needs to be modified.
 
+––––––––––––  Topics.swift  ––––––––––––
+
+```swift
 //
 //  Topics.swift
 //  Swift_programming_with_XCode_tutor
@@ -370,8 +375,11 @@ struct QuizFactory {
         return out.shuffled()
     }
 }
+```
 
+––––––––––––  QuestionGenerator.swift  ––––––––––––
 
+```swift
 //
 //  QuestionGenerator.swift
 //  Swift_programming_with_XCode_tutor
@@ -748,3 +756,6 @@ enum QuestionGenerator {
              "Quick Help shows inline documentation for the symbol.", .quickHelp)
     }
 }
+```
+
+Everything else in your project can remain as-is; simply replace the existing files with the above versions to unlock a far richer curriculum for learners and a much larger pool of quiz questions.

@@ -1,234 +1,186 @@
-# Auto-OpenAI-API
+# Iterative OpenAI Generation Tool README
 
-# Iterative LLM Refiner (`iter-refine.py`)
-
-A command-line tool that repeatedly sends a document (or code file) to an OpenAI model with fixed instructions, stops when changes between iterations fall below a threshold, and writes the result back to disk. It includes robust retry logic, optional per-iteration email notifications, and an iteration **limit** so runs cannot exceed a specified number.
-
----
-
-## Features
-
-- **Iterative refinement loop** with configurable diff threshold.
-- **Hard stop via `--limit`** to cap the maximum number of iterations.
-- **Robust retries** with per-second live progress logs.
-- **Programming-aware behavior**:
-  - If the input is a single programming file (by extension) and `--no-direct` is **not** set, the file is **updated in place**.
-  - Otherwise, output is written to `output_<base>.txt`.
-- **Directory mode**: reads all `*.utf` and `*.txt` files (sorted) and concatenates them.
-- **Per-iteration debug snapshots** in `debug_<base>/`.
-- **Optional Gmail email notification** after each iteration.
-- **OpenAI Responses API** usage via `openai` Python SDK.
+> **Sample usage (quick-start)**  
+> Generate iterative improvements for a single Python file using `o3-pro`, stopping when changes drop below 5 %:
+>
+> ```bash
+> python3 iterate_ai.py \
+>   --instructions prompt.txt \
+>   --filepaths main.py \
+>   --model o3-pro \
+>   --threshold-percent 5
+> ```
 
 ---
 
-## Requirements
+## Table of Contents
+1. [Overview](#overview)  
+2. [Installation](#installation)  
+3. [CLI Usage](#cli-usage)  
+4. [How It Works](#how-it-works)  
+5. [Environment Variables](#environment-variables)  
+6. [Email Notifications](#email-notifications)  
+7. [Programming-Aware Mode](#programming-aware-mode)  
+8. [Multi-file Workflows](#multi-file-workflows)  
+9. [Debugging](#debugging)  
+10. [Examples](#examples)  
+11. [Limitations & Caveats](#limitations--caveats)  
+12. [License](#license)
 
-- Python 3.8+
-- Packages:
-  - `openai` (Python SDK)
-- Environment variables:
-  - `OPENAI_API_KEY` → API key for OpenAI.
-  - For email (optional):
-    - `GMAIL_ADDRESS` → Your Gmail address.
-    - `GMAIL_APP_PASSWORD` → A Gmail App Password (recommended; not your main password).
+---
 
-Install dependencies:
+## Overview
+This script iteratively calls the OpenAI API to refine one or more text or code files until the diff between consecutive iterations drops below a user-defined threshold.  
+Typical use-cases:
 
+* Rewriting or polishing prose
+* Auto-refactoring source code
+* Generating multi-file boilerplates from high-level prompts
+
+---
+
+## Installation
 ```bash
-pip install openai
+git clone https://github.com/your-org/iterate-ai.git
+cd iterate-ai
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt  # openai>=1.6.*, etc.
 
 
 ⸻
 
-Usage
+CLI Usage
 
-./iter-refine.py INSTRUCTIONS_FILE FILEPATH [options]
+python3 iterate_ai.py --instructions <file> --filepaths <path> [options]
 
-	•	INSTRUCTIONS_FILE: Path to a UTF-8 text file containing the prompt/instructions for the model.
-	•	FILEPATH: Path to a single input file, or a directory of .utf/.txt files.
+Option	Type	Default	Description
+--instructions	required	—	UTF-8 file containing the system prompt for the model.
+--filepaths	required	—	One or more input files or directories. Directories are scanned for .utf/.txt.
+--model	str	o3-pro	OpenAI model name.
+--threshold	float	0.2	Stop when diff ratio < threshold.
+--threshold-percent	float	—	Same as --threshold but expressed in %.
+--limit	int	—	Maximum iterations.
+--no-direct	flag	False	Never overwrite inputs; always emit output_<base>.txt.
+--extensions	str	see code	Comma-separated list of programming extensions that trigger programming-aware mode.
+--email	str	—	Send progress emails to this address.
+--debug-dir	str	debug_<base>	Directory for raw model outputs.
+--max-retries	int	5	Max OpenAI request retries.
+--retry-delay	float	2	Seconds between retries.
+--api-key	str	$OPENAI_API_KEY	Override environment variable.
 
-Options
-
-Flag	Type	Default	Description
---threshold	float	0.2	Diff stop threshold (decimal). Loop stops when diff_ratio < threshold.
---threshold-percent	float	none	Diff stop threshold as a percent (e.g., 5 for 5%). Overrides --threshold if provided.
---model	str	o3-pro	OpenAI model name used in client.responses.create.
---email	str	none	Send a summary email to this address after each iteration (requires Gmail env vars).
---no-direct	flag	off	Disable in-place editing even for a single programming file.
---limit	int	none	Hard cap on the number of iterations attempted. If 0, no iterations run.
-
-Programming file detection is based on extension:
-.py, .js, .ts, .java, .c, .cpp, .h, .hpp, .go, .rs, .rb, .php, .swift, .sh, .pl
 
 ⸻
 
 How It Works
-	1.	Load input text:
-	•	If FILEPATH is a file: read its content.
-	•	If FILEPATH is a directory: read and concatenate all *.utf/*.txt files (sorted).
-	2.	Prepare instructions:
-	•	If input is a programming file, a hint is auto-appended to request code-only responses (complete, revised source with no extra text).
-	3.	Iterative loop:
-	•	Send history_text (initially the current text) to the model with the given instructions.
-	•	Save the model output for that iteration to debug_<base>/<base>_iter_<N>.txt.
-	•	Compute diff_ratio = 1 - difflib.SequenceMatcher(...).ratio().
-	•	If diff_ratio < threshold, stop; otherwise, append the new output to history_text and continue.
-	•	If --limit is provided, stop before starting iteration N when N > --limit. With --limit K, at most K iterations are performed.
-	4.	Write result:
-	•	If input was a single programming file and --no-direct is not set: overwrite the original file with the final text.
-	•	Otherwise: write to output_<base>.txt.
+	1.	Gather input Concatenates all selected files (recursive for directories).
+	2.	First prompt Sends the entire text plus your instructions to the model.
+	3.	Diff check Computes the Levenshtein ratio between old and new text.
+	4.	Loop If the ratio ≥ threshold, the new output becomes history and another request is made.
+	5.	Termination Stops on ratio < threshold or --limit exceeded.
+	6.	Write-back   • Single programming file → in-place.
+          • Multiple files → uses --- file: <name> markers to split.
+          • Otherwise emits output_<base>.txt.
 
 ⸻
 
-Diff Threshold Details
-	•	diff_ratio is computed as:
+Environment Variables
 
-1.0 - SequenceMatcher(a, b).ratio()
+Variable	Purpose
+OPENAI_API_KEY	Fallback API key if not supplied via --api-key.
+GMAIL_ADDRESS & GMAIL_APP_PASSWORD	Needed only when --email is used.
 
-where a is the previous text and b is the new text.
-
-	•	Stop condition: diff_ratio < threshold.
-	•	You can specify:
-	•	--threshold 0.2 (decimal), or
-	•	--threshold-percent 5 (interpreted as 0.05) which overrides --threshold.
-
-Tips:
-	•	A lower threshold (e.g., 0.02) stops earlier (requires very small changes).
-	•	A higher threshold (e.g., 0.5) allows larger changes per iteration before stopping.
 
 ⸻
 
-Iteration Limit
-	•	Use --limit to cap the number of iterations.
-	•	The check happens at the top of the loop; with --limit K:
-	•	Iterations 1..K run at most.
-	•	If --limit 0, the loop exits immediately (no API calls).
+Email Notifications
 
-Example:
-
-./iter-refine.py rules.txt mycode.py --limit 3
-
-Runs at most 3 iterations, regardless of threshold.
+When --email you@example.com is passed and Gmail credentials are available, each iteration sends a message containing:
+	•	Iteration number
+	•	Diff ratio
+	•	First 500 characters of the model response
+	•	Path to the debug file
 
 ⸻
 
-Debugging & Logs
-	•	Live timing logs: Each API attempt prints elapsed seconds until success/failure.
-	•	Retries:
-	•	MAX_RETRIES = 5 with RETRY_DELAY = 2s between retries.
-	•	The tool attempts up to 6 total tries per iteration (initial try + 5 retries).
-	•	Per-iteration output files: debug_<base>/<base>_iter_<N>.txt.
+Programming-Aware Mode
+
+If all --filepaths are recognized programming files:
+	•	An extra instruction is appended telling the model to return only the complete revised source (no comments or prose).
+	•	Single-file runs overwrite in place by default; multi-file runs are matched back via # file: foo.py / // file: markers.
 
 ⸻
 
-Email Notifications (Optional)
+Multi-file Workflows
 
-If --email you@example.com is provided and Gmail env vars are set:
-	•	After each iteration, an email is sent with:
-	•	The iteration number and computed diff ratio.
-	•	The path to the written debug file.
-	•	The first 500 characters of the model output.
+Provide several paths:
 
-Setup:
+python3 iterate_ai.py \
+  --instructions app_prompt.txt \
+  --filepaths src/ utils.py \
+  --threshold-percent 3
 
-export GMAIL_ADDRESS="your.name@gmail.com"
-export GMAIL_APP_PASSWORD="your_app_password"  # Use a Gmail App Password
+The model should emit sections like:
 
-Notes:
-	•	SMTP server: smtp.gmail.com:465 via SSL.
-	•	If login or send fails, the tool logs a warning and continues.
+--- file: main.py
+<code here>
+--- file: utils.py
+<code here>
+
+The script maps these sections back to the original files; unmatched output is dumped to output_<base>.txt.
 
 ⸻
 
-Output Behavior
-	•	Single programming file + not --no-direct → overwrites the file.
-	•	Otherwise → writes output_<base>.txt in the current directory.
-	•	Partial progress is preserved:
-	•	If an iteration fails, the loop stops and the last successful text is written to output (or kept in place for in-place mode).
+Debugging
+
+All raw model outputs are saved under --debug-dir (default debug_<first_file_basename>):
+
+debug_<base>/
+  ├── <base>_iter_1.txt
+  ├── <base>_iter_2.txt
+  └── ...
+
+Inspect these to track how the model evolves your content.
 
 ⸻
 
 Examples
 
-1) Refine a single code file in place
+1. Refactor a JavaScript project
 
-./iter-refine.py ./instructions.md ./src/main.py
+python3 iterate_ai.py \
+  --instructions refactor_js.txt \
+  --filepaths app/ \
+  --model o3-pro \
+  --threshold 0.15
 
-2) Cap at 5 iterations
+2. Polish documentation without overwriting originals
 
-./iter-refine.py ./instructions.md ./src/main.py --limit 5
+python3 iterate_ai.py \
+  --instructions style_guide.txt \
+  --filepaths docs/README.utf \
+  --no-direct \
+  --threshold-percent 10
 
-3) Stricter stop threshold (2%)
+3. Continuous editing with e-mail updates
 
-./iter-refine.py ./rules.txt ./draft.txt --threshold-percent 2
+python3 iterate_ai.py \
+  --instructions improvements.txt \
+  --filepaths report.txt \
+  --email myname@example.com \
+  --limit 8
 
-4) Force non-destructive output for a programming file
-
-./iter-refine.py ./rules.txt ./src/main.py --no-direct
-# writes to ./output_main.txt
-
-5) Directory mode (concatenate *.utf and *.txt)
-
-./iter-refine.py ./rules.txt ./inputs_dir --limit 3
-# result written to ./output_inputs_dir.txt
-
-6) Email per-iteration status
-
-export GMAIL_ADDRESS="me@gmail.com"
-export GMAIL_APP_PASSWORD="xxxx xxxx xxxx xxxx"
-./iter-refine.py ./rules.txt ./draft.txt --email me@company.com
-
-7) Use a specific model
-
-./iter-refine.py ./rules.txt ./draft.txt --model gpt-4.1-mini
-
-The code calls:
-
-client.responses.create(model=..., instructions=..., input=history_text)
-
-Ensure the chosen model supports the Responses API.
 
 ⸻
 
-Environment & Configuration
-	•	OpenAI:
-
-export OPENAI_API_KEY="sk-..."
-
-
-	•	Proxy / Extra settings: If you need to configure custom OpenAI endpoints or proxies, set them via the SDK’s supported environment variables or client options (not shown in this script).
-
-⸻
-
-Security & Privacy
-	•	The tool sends your entire input (and cumulative history each iteration) to the selected model.
-	•	Consider redacting secrets or using mock data when appropriate.
-	•	For email, use a Gmail App Password (with 2FA enabled on the account).
-
-⸻
-
-Known Limitations
-	•	Context growth: history_text grows each iteration and may approach model context limits on long runs.
-	•	Diff heuristic: SequenceMatcher is content-agnostic; small logically important changes may be treated as “small diffs”.
-	•	Directory mode only reads *.utf and *.txt files; other extensions are ignored.
-	•	In-place writes only happen for single programming files (by extension list shown above) and only if --no-direct is not used.
-
-⸻
-
-Exit Behavior
-	•	On unrecoverable API errors, the script logs a fatal message and stops the loop. It will still proceed to the output step with the last successful text.
-	•	Non-zero exit codes are not explicitly set; integrate with CI by inspecting output logs and artifact presence.
-
-⸻
-
-Development Notes
-	•	Retries: MAX_RETRIES = 5, RETRY_DELAY = 2s; adjust in code if needed.
-	•	Debug folder naming: debug_<base> where <base> is the input file/directory basename.
-	•	Email subject format: Iteration <N> completed (ratio <value>).
+Limitations & Caveats
+	•	Depends on model compliance with special “only return code” instruction.
+	•	Diff ratio on large binary-like outputs (minified JS etc.) may be noisy.
+	•	Multi-file parsing relies on explicit file: markers—ensure your prompts instruct the model accordingly.
+	•	Gmail 2-factor accounts require an app password (not your normal login).
 
 ⸻
 
 License
 
-Apache
+Apache © 2025 Bo Shang / PDFSage Inc.
 
