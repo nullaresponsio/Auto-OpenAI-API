@@ -90,8 +90,25 @@ def parse_multi_file_output(text, input_paths):
     return out_map if out_map else None
 
 
+def write_outputs(new_text, args, programming_mode):
+    if programming_mode and not args.no_direct:
+        if len(args.filepaths) == 1:
+            with open(args.filepaths[0], "w", encoding="utf-8") as f:
+                f.write(new_text)
+            print(f"[DEBUG] Updated {args.filepaths[0]}")
+        else:
+            out_map = parse_multi_file_output(new_text, args.filepaths)
+            if out_map:
+                for path, content in out_map.items():
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    print(f"[DEBUG] Updated {path}")
+            else:
+                print("[WARN] Could not match output to files on this iteration")
+
+
 def main():
-    global MAX_RETRIES, RETRY_DELAY, PROGRAMMING_EXTENSIONS  # moved before first usage
+    global MAX_RETRIES, RETRY_DELAY, PROGRAMMING_EXTENSIONS
 
     parser = argparse.ArgumentParser(description="Iterative OpenAI generation tool.")
     parser.add_argument("--instructions", required=True, help="Path to UTF-8 instructions file")
@@ -148,6 +165,8 @@ def main():
             except Exception as e:
                 print(f"[WARN] Gmail login failed: {e}")
 
+    programming_mode = all(is_programming_file(p) for p in args.filepaths)
+
     while True:
         if args.limit is not None and iteration > args.limit:
             print(f"[DEBUG] Iteration limit {args.limit} reached, stopping")
@@ -162,6 +181,8 @@ def main():
         with open(dbg_path, "w", encoding="utf-8") as df:
             df.write(new_text)
         print(f"[DEBUG] Iter {iteration}: response written to {dbg_path}")
+
+        write_outputs(new_text, args, programming_mode)  # direct overwrite each loop
 
         ratio = diff_ratio(current_text, new_text)
         print(f"[DEBUG] Iter {iteration}: diff_ratio={ratio:.6f}")
@@ -192,32 +213,6 @@ def main():
             email_server.quit()
         except Exception:
             pass
-
-    programming_mode = all(is_programming_file(p) for p in args.filepaths)
-
-    if programming_mode and not args.no_direct:
-        if len(args.filepaths) == 1:
-            with open(args.filepaths[0], "w", encoding="utf-8") as f:
-                f.write(current_text)
-            print(f"Updated {args.filepaths[0]}")
-        else:
-            out_map = parse_multi_file_output(current_text, args.filepaths)
-            if out_map:
-                for path, content in out_map.items():
-                    with open(path, "w", encoding="utf-8") as f:
-                        f.write(content)
-                    print(f"Updated {path}")
-            else:
-                print("[WARN] Could not match output to files, writing combined output")
-                output_path = f"output_{base}.txt"
-                with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(current_text)
-                print(f"Output written to {output_path}")
-    else:
-        output_path = f"output_{base}.txt"
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(current_text)
-        print(f"Output written to {output_path}")
 
 
 if __name__ == "__main__":

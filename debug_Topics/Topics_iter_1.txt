@@ -1,0 +1,134 @@
+Below is a “menu of upgrades” you can cherry-pick from.  Nothing here changes your public API, so existing screens still compile, but every item deepens either the teaching value or the quiz engine’s replay-ability.
+
+───────────────── 1.  Broaden the Curriculum ─────────────────
+Add the most requested Swift/iOS subjects that are currently missing.
+
+Swift Core
+• optionalsDeepDive                    – Optional chaining, nil-coalescing, implicitly unwrapped
+• associatedTypes                      – Protocols with associated types, “some vs any”
+• keyPaths                             – WritableKeyPath, ReferenceWritableKeyPath
+• regularExpressions                   – Regex literals / first-class capture lists
+• unicodeScalars                       – Character vs UnicodeScalar, extended grapheme clusters
+
+Concurrency & Reactive
+• structuredConcurrencyPatterns        – Cancellation, child-task hierarchy, priority
+• sendable                             – @Sendable closures, Sendable conformance
+• combine                              – Publishers, Operators, Subscribers
+• continuations                        – CheckedContinuation, AsyncStream
+
+SwiftUI
+• layoutSystem                         – Layout protocol, GeometryReader, Spacer
+• observation                          – Observation framework replacement for @ObservableObject
+• advancedAnimations                   – TimelineView, PhaseAnimator, key-frame animations
+• drawingGroup                         – GPU rasterization hints, vector drawing
+
+Core iOS frameworks
+• coreData                             – NSPersistentContainer, fetch requests, lightweight migration
+• coreAnimation                        – CALayer hierarchy, implicit vs explicit animations
+• accessibility                        – VoiceOver, Dynamic Type, semantic UI
+• pushNotifications                    – UNUserNotificationCenter, APNs device token flow
+• networking                           – URLSession, async/await, background transfers
+• persistence                          – Codable + FileManager, Keychain, NSUserDefaults
+
+Testing & CI
+• uiTesting                            – XCUIApplication, recording, predicates
+• performanceTesting                   – measure(metrics:), XCTClockMetric
+• mocking                              – protocol‐based mocks, async sequences in tests
+• continuousDelivery                   – Fastlane, notarization, TestFlight groups
+
+Tooling
+• instrumentsLeaks                     – Leaks template, cycle detection
+• shaderDebugger                       – Metal frame capture, GPU counters
+• accessibilityInspector               – Audit issues, color contrast
+• profilerSwiftSyntax                  – `swift syntax` CLI, symbol graphs
+
+───────────────── 2.  Layered Difficulty & Bloom’s Taxonomy ─────────────────
+Add metadata so a topic can be served at multiple cognitive levels.
+
+enum Difficulty: String, CaseIterable { case recall, apply, synthesize }
+
+struct DiscreteMathQuestion { … let difficulty: Difficulty }
+
+• Upgrade the generators by supplying easy (keyword), medium (snippet gap-fill), and hard (reason-about-bug) flavours.  
+• In QuizFactory.generate(count:for:) accept a target difficulty distribution; beginners get mostly “recall”, advanced users see more “synthesize”.
+
+───────────────── 3.  Richer Question Types ─────────────────
+1. Code-order shuffle  
+   – Present 4 code lines and ask the learner to drag them into the correct order.  
+2. Hot spot  
+   – Show a snippet and ask which line will crash/compile-fail.  
+3. “Explain this output”  
+   – Display a tiny program and ask for the printed result (great for optionals, value vs reference, capture lists).  
+4. True/False lightning round  
+   – Extremely fast review mode that uses the same engine but two buttons; turn on when `count` > 30.
+
+Represent them with:
+
+enum QuizQuestion {  
+    case multiple(…)  
+    case submit(…)  
+    case reorder(ReorderQuestion)  
+    case hotspot(HotSpotQuestion)  
+    case tf(TrueFalseQuestion)  
+}
+
+Each new case conforms to Identifiable exactly as your existing enum does, so the UI needs only another switch arm in the row view.
+
+───────────────── 4.  Spaced-Repetition Scoring ─────────────────
+Persist per-Topic “ease” and “nextReviewDate” with Codable + AppStorage (or a tiny CoreData model).  
+• After the user answers, compute a SM-2 score and reschedule that card.  
+• QuizFactory.generate() then first pulls any due cards before filling the remainder with fresh ones.
+
+───────────────── 5.  Inline Playground-Ready Examples ─────────────────
+Add an “example” string (Markdown + runnable snippet) next to every explanation:
+
+extension Topic { var example: String }
+
+Example for optionalsDeepDive:
+"""
+var pet: String? = "Turtle"      // Optional String
+print(pet?.count ?? 0)           // safely unwraps => 6
+"""
+
+Surface it in a collapsible disclosure group under each explanation view and add a “Copy to Playground” button.
+
+───────────────── 6.  Micro-Achievements & Progress Charts ─────────────────
+• Track streaks, fastest perfect round, topics mastered (= 3 consecutive correct answers at synthesize level).  
+• Render with Swift Charts: Topic vs mastery % stacked bar.
+
+───────────────── 7.  Lint & Localization Readiness ─────────────────
+• Mark every user-visible string with NSLocalizedString so the same enum powers other languages.  
+• Run SwiftLint’s “missing_docs” and “cyclomatic_complexity” rules to keep question generators under control.
+
+───────────────── 8.  Example Code Snippet (New Topic + Question) ─────────────────
+1. Add to Topic enum:
+case keyPaths
+
+2. Explanation map:
+.keyPaths : "**Key paths** (`\\Type.property`) provide type-safe property references usable for KVO, binding, Combine, and sorting."
+
+3. Generator:
+
+static func keyPathsQuestion() -> DiscreteMathQuestion {
+    make(
+      "Which expression creates a WritableKeyPath from `Person` to `String`?",
+      ["\\Person.name", "Person.name", "#keyPath(Person.name)", "\\Person.self.name"],
+      0,
+      "`\\Person.name` is a compile-time checked WritableKeyPath<Person,String>.",
+      .keyPaths)
+}
+
+Hook it up in the dispatcher and you’re done.
+
+───────────────── 9.  Safety Nets ─────────────────
+• Add unit tests that iterate over every Topic and assert `generated().answers.indices` contains `correctAnswerIndex`.  
+• Assert explanations & titles are non-empty to prevent UI placeholders.
+
+───────────────── 10.  Roadmap Snapshot ─────────────────
+Phase 1 (quick wins): new topics + explanation examples (1,8,9)  
+Phase 2 (engagement): richer question types & difficulty (2,3)  
+Phase 3 (retention): spaced repetition & achievements (4,6)  
+
+Pick whichever phases match your schedule - the code base is already modular, so each enhancement is self-contained.
+
+Happy teaching!
