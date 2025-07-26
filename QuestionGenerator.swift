@@ -1,376 +1,482 @@
-//
-//  QuestionGenerator.swift
-//  Swift_programming_with_XCode_tutor
-//  Updated 7/26/25 – Added many more Swift, SwiftUI & Xcode questions
-//
 
 import Foundation
 
+/// Factory for every multiple-choice quiz item.
+/// Each helper returns a **DiscreteMathQuestion** ready for the UI.
 enum QuestionGenerator {
-    static let maxCount = 500   // arbitrary upper bound
 
-    private static func make(_ q: String,
-                             _ opts: [String],
-                             _ correct: Int,
-                             _ expl: String,
-                             _ top: Topic) -> DiscreteMathQuestion {
+    static let maxCount: Int = 100   // upper-bound safeguarding
+
+    // MARK: -- Internal convenience
+    private static func make(
+        _ prompt: String,
+        _ options: [String],
+        _ correct: Int,
+        _ explanation: String,
+        _ topic: Topic
+    ) -> DiscreteMathQuestion {
         DiscreteMathQuestion(
-            question: q,
-            answers: opts,
+            question: prompt,
+            answers: options,
             correctAnswerIndex: correct,
-            explanation: expl,
-            topic: top)
+            explanation: explanation,
+            topic: topic
+        )
     }
 
-    // MARK: - Swift fundamentals
+    // ──────────────────────────────────────────────────────────
+    // Existing question builders (unchanged)
+    // ──────────────────────────────────────────────────────────
     static func variableKeywordQuestion() -> DiscreteMathQuestion {
-        make("Which keyword declares a mutable variable in Swift?",
-             ["var", "let", "func", "enum"], 0,
-             "`var` declares a variable whose value can change.", .variableKeyword)
+        make(
+            "Which operator assigns a value to a variable in Python?",
+            ["=", "==", ":=", "->"],
+            0,
+            "`=` binds a name to an object; `==` tests equality, `:=` is the walrus operator, and `->` annotates returns.",
+            .variableKeyword
+        )
     }
+
     static func constantKeywordQuestion() -> DiscreteMathQuestion {
-        make("Which keyword declares an immutable constant?",
-             ["let", "var", "static", "mutating"], 0,
-             "`let` creates a constant that cannot be reassigned.", .constantKeyword)
+        make(
+            "How are constants typically indicated in Python code?",
+            ["ALL_CAPS variable names", "Using a `const` keyword", "Prefixing with `!`", "Using `final` at runtime"],
+            0,
+            "Python has no `const`; uppercase names at module scope signal constants by convention.",
+            .constantKeyword
+        )
     }
+
     static func optionalsQuestion() -> DiscreteMathQuestion {
-        make("An optional in Swift represents …?",
-             ["A value that may be nil", "A generic type", "A type alias", "A protocol"], 0,
-             "Optionals wrap a value that can be present or `nil`.", .optionals)
+        make(
+            "What object represents the absence of a value in Python?",
+            ["None", "nil", "null", "undefined"],
+            0,
+            "`None` is Python’s null singleton.",
+            .optionals
+        )
     }
+
     static func closuresQuestion() -> DiscreteMathQuestion {
-        make("In Swift, a closure is …?",
-             ["A self-contained block of code", "A stored property", "A protocol extension", "A generic constraint"], 0,
-             "Closures are anonymous functions that can capture surrounding context.", .closures)
+        make(
+            "What keyword defines an anonymous function in Python?",
+            ["lambda", "def", "func", "anonymous"],
+            0,
+            "`lambda` creates a closure capturing outer variables.",
+            .closures
+        )
     }
+
     static func structsVsClassesQuestion() -> DiscreteMathQuestion {
-        make("Which statement about structs and classes is correct?",
-             ["Classes support inheritance", "Structs support inheritance", "Both are reference types", "Only structs have deinitializers"], 0,
-             "Classes are reference types and can inherit; structs are value types.", .structsVsClasses)
+        make(
+            "Which decorator simplifies creation of data-carrier classes?",
+            ["@dataclass", "@staticmethod", "@property", "@abstractmethod"],
+            0,
+            "`@dataclass` auto-generates boilerplate like `__init__`.",
+            .structsVsClasses
+        )
     }
+
     static func protocolsQuestion() -> DiscreteMathQuestion {
-        make("What does a protocol provide in Swift?",
-             ["Blueprint of methods and properties", "A concrete data type", "A way to handle errors", "A compile-time attribute"], 0,
-             "Protocols define requirements adopted by types.", .protocols)
+        make(
+            "PEP 544 introduced which typing feature?",
+            ["Protocols for structural subtyping", "Mandatory interface inheritance", "Checked exceptions", "Null-safety operators"],
+            0,
+            "Protocols enable duck-typed static type checking.",
+            .protocols
+        )
     }
+
     static func genericsQuestion() -> DiscreteMathQuestion {
-        make("Generics in Swift enable …?",
-             ["Code that works with any type", "Runtime reflection", "Automatic memory management", "Dynamic dispatch only"], 0,
-             "Generics let you write flexible, reusable code.", .generics)
-    }
-    static func extensionsFeatureQuestion() -> DiscreteMathQuestion {
-        make("Extensions in Swift allow you to …?",
-             ["Add new functionality to existing types", "Create new protocols", "Allocate memory manually", "Define new access levels"], 0,
-             "Extensions add methods, properties, or conformance without subclassing.", .extensionsFeature)
-    }
-    static func propertiesQuestion() -> DiscreteMathQuestion {
-        make("Which property stores a value directly and doesn’t compute on access?",
-             ["Stored property", "Computed property", "Lazy property", "Type property"], 0,
-             "Stored properties keep values directly; computed properties calculate on access.", .properties)
-    }
-    static func subscriptsQuestion() -> DiscreteMathQuestion {
-        make("The `subscript` keyword enables …?",
-             ["Indexed access like array[key]", "Protocol conformance", "Generics specialization", "Automatic memory management"], 0,
-             "Subscripts give shortcut access to collection-like types.", .subscripts)
-    }
-    static func guardStatementQuestion() -> DiscreteMathQuestion {
-        make("`guard` statements are mainly used to …?",
-             ["Exit early when a condition fails", "Allocate memory", "Start a thread", "Catch errors"], 0,
-             "`guard` unwraps/validates and must exit scope if the condition is false.", .guardStatement)
-    }
-    static func deferStatementQuestion() -> DiscreteMathQuestion {
-        make("Code within a `defer` block executes …?",
-             ["When the current scope is about to exit", "Immediately", "Before every return", "Only on success"], 0,
-             "`defer` is ideal for cleanup like closing files.", .deferStatement)
-    }
-    static func lazyKeywordQuestion() -> DiscreteMathQuestion {
-        make("A `lazy` property is initialized …?",
-             ["On first access", "During object allocation", "At compile time", "After deinit"], 0,
-             "Lazy properties delay expensive initialization until needed.", .lazyKeyword)
-    }
-    static func typealiasKeywordQuestion() -> DiscreteMathQuestion {
-        make("`typealias` in Swift is used to …?",
-             ["Provide an alternative name for a type", "Allocate memory", "Implement inheritance", "Define a protocol"], 0,
-             "`typealias` improves readability and abstraction.", .typealiasKeyword)
-    }
-    static func stringInterpolationQuestion() -> DiscreteMathQuestion {
-        make("The syntax `\"Hello \\(name)!\"` is an example of …?",
-             ["String interpolation", "Tuple destructuring", "KeyPath expression", "Mirror reflection"], 0,
-             "String interpolation inserts expression values into literals.", .stringInterpolation)
-    }
-    static func tuplesQuestion() -> DiscreteMathQuestion {
-        make("Which code defines a tuple of Int and String?",
-             ["(42, \"Answer\")", "[42, \"Answer\"]", "{42, \"Answer\"}", "<42, \"Answer\">"], 0,
-             "Parentheses create tuples: `(value1, value2, …)`.", .tuples)
-    }
-    static func collectionsQuestion() -> DiscreteMathQuestion {
-        make("Which collection type guarantees uniqueness of its elements?",
-             ["Set", "Array", "Dictionary", "Tuple"], 0,
-             "`Set` stores unordered, unique elements.", .collections)
-    }
-    static func controlFlowQuestion() -> DiscreteMathQuestion {
-        make("Which keyword starts a conditional statement in Swift?",
-             ["if", "when", "case", "cond"], 0,
-             "`if` evaluates a Boolean condition and executes code accordingly.", .controlFlow)
+        make(
+            "Which module provides `TypeVar`?",
+            ["typing", "types", "collections", "sys"],
+            0,
+            "`typing` underpins generics and type hints.",
+            .generics
+        )
     }
 
-    // MARK: - Additional Swift topics
-    static func functionsQuestion() -> DiscreteMathQuestion {
-        make("Which keyword defines a function in Swift?",
-             ["func", "fun", "def", "function"], 0,
-             "`func` introduces a reusable function.", .functions)
-    }
-    static func enumsQuestion() -> DiscreteMathQuestion {
-        make("Which keyword declares an enumeration?",
-             ["enum", "struct", "case", "option"], 0,
-             "`enum` defines a type with multiple cases.", .enums)
-    }
-    static func errorHandlingQuestion() -> DiscreteMathQuestion {
-        make("Which keyword marks a Swift function that can throw an error?",
-             ["throws", "throw", "try", "catch"], 0,
-             "`throws` indicates a function may propagate errors.", .errorHandling)
-    }
-    static func accessControlQuestion() -> DiscreteMathQuestion {
-        make("What is the most permissive access level in Swift?",
-             ["open", "public", "internal", "private"], 0,
-             "`open` allows use and subclassing outside the defining module.", .accessControl)
-    }
-    static func memoryManagementQuestion() -> DiscreteMathQuestion {
-        make("Swift uses which memory-management model?",
-             ["Automatic Reference Counting (ARC)", "Garbage Collection", "Manual Reference Counting", "Region-based Allocation"], 0,
-             "ARC automatically manages object lifetimes via reference counts.", .memoryManagement)
-    }
-
-    // MARK: - Advanced language
     static func concurrencyQuestion() -> DiscreteMathQuestion {
-        make("Swift concurrency is primarily expressed with …?",
-             ["`async` and `await`", "`goto` statements", "Polling loops", "Global locks only"], 0,
-             "Structured concurrency uses `async`/`await` and task groups.", .concurrency)
+        make(
+            "Which std-lib module underlies `async`/`await`?",
+            ["asyncio", "threading", "multiprocessing", "queue"],
+            0,
+            "`asyncio` supplies the event loop.",
+            .concurrency
+        )
     }
-    static func propertyWrappersQuestion() -> DiscreteMathQuestion {
-        make("Which attribute defines a property wrapper?",
-             ["@propertyWrapper", "@wrapper", "@property", "@delegate"], 0,
-             "`@propertyWrapper` creates reusable get/set behavior.", .propertyWrappers)
+
+    static func controlFlowQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which keyword starts a `while` loop?",
+            ["while", "loop", "for", "do"],
+            0,
+            "`while` repeats until the condition is false.",
+            .controlFlow
+        )
     }
-    static func resultBuildersQuestion() -> DiscreteMathQuestion {
-        make("Result builders in Swift enable …?",
-             ["Declarative DSL syntax", "Reference counting", "Error handling", "Memory copying"], 0,
-             "Result builders transform block syntax into chained calls (e.g., SwiftUI).", .resultBuilders)
+
+    static func listComprehensionsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which expression creates a list of squares 0-9?",
+            ["[x**2 for x in range(10)]", "list(x**2 for x in range(10))", "{x**2 for x in range(10)}", "(x**2 for x in range(10))"],
+            0,
+            "Brackets build a list; braces a set; parentheses a generator.",
+            .listComprehensions
+        )
     }
-    static func actorsQuestion() -> DiscreteMathQuestion {
-        make("An `actor` in Swift is …?",
-             ["A reference type isolating mutable state", "A compile-time macro", "A value type for animations", "An Objective-C class"], 0,
-             "Actors serialize access to their internal state across tasks.", .actors)
+
+    static func dictSetComprehensionsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which syntax builds a set of even numbers from 0-9?",
+            ["{x for x in range(10) if x%2==0}", "[x for x in range(10) if x%2==0]", "{x: x%2 for x in range(10)}", "(x for x in range(10) if x%2==0)"],
+            0,
+            "Braces with a single expression create a set comprehension.",
+            .dictSetComprehensions
+        )
     }
-    static func distributedActorsQuestion() -> DiscreteMathQuestion {
-        make("Distributed actors differ from regular actors by …?",
-             ["Isolating state across process or network boundaries", "Allowing subclass inheritance", "Requiring Objective-C runtime", "Disabling async/await"], 0,
-             "Distributed actors communicate securely across boundaries.", .distributedActors)
+
+    static func decoratorsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which symbol prefixes a decorator?",
+            ["@", "#", "$", "%"],
+            0,
+            "`@decorator` precedes the function/class header.",
+            .decorators
+        )
     }
-    static func asyncLetQuestion() -> DiscreteMathQuestion {
-        make("`async let` is used to …?",
-             ["Start a child task concurrently", "Define a constant", "Handle errors", "Create a macro"], 0,
-             "`async let` launches a child task and binds its result.", .asyncLet)
+
+    static func contextManagersQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which keyword acquires a context manager?",
+            ["with", "use", "open", "as"],
+            0,
+            "`with` ensures deterministic cleanup via `__exit__`.",
+            .contextManagers
+        )
     }
-    static func taskGroupsQuestion() -> DiscreteMathQuestion {
-        make("Task groups in Swift enable …?",
-             ["Dynamic, structured spawning of child tasks", "Global locks", "Manual thread pools", "Blocking synchronization"], 0,
-             "Task groups run many tasks concurrently and gather results.", .taskGroups)
+
+    static func exceptionsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which keyword begins a try/except construct?",
+            ["try", "catch", "except", "raise"],
+            0,
+            "`try` encloses code that may raise.",
+            .exceptions
+        )
     }
-    static func macrosQuestion() -> DiscreteMathQuestion {
-        make("Swift macros provide …?",
-             ["Compile-time code generation", "Just-in-time compilation", "Manual memory management", "Exclusive Objective-C interop"], 0,
-             "Macros expand source code during compilation for boilerplate reduction.", .macros)
+
+    static func modulesPackagesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which file marks a directory as a package (pre-3.3)?",
+            ["__init__.py", "__main__.py", "setup.py", "pyproject.toml"],
+            0,
+            "`__init__.py` historically signals a package.",
+            .modulesPackages
+        )
     }
-    static func asyncSequenceQuestion() -> DiscreteMathQuestion {
-        make("An `AsyncSequence` differs from `Sequence` because …?",
-             ["It delivers values asynchronously over time", "It works only with arrays", "It runs only on the main thread", "It cannot throw errors"], 0,
-             "`AsyncSequence` integrates with `for await` to consume values asynchronously.", .asyncSequence)
+
+    static func iteratorsGeneratorsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which keyword yields a value lazily?",
+            ["yield", "return", "produce", "next"],
+            0,
+            "`yield` pauses and resumes generator execution.",
+            .iteratorsGenerators
+        )
     }
+
+    static func functionsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which symbol packs arbitrary positional args in a function signature?",
+            ["*", "**", "&", "..."],
+            0,
+            "`*args` collects extra positional parameters.",
+            .functions
+        )
+    }
+
+    static func stringFormattingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which formatting style allows in-line expressions since Python 3.6?",
+            ["f-strings", "% formatting", "`str.format`", "Template strings"],
+            0,
+            "Prefix with `f` to create an f-string.",
+            .stringFormatting
+        )
+    }
+
+    static func fileIOQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which mode opens a file for reading binary data?",
+            ["'rb'", "'r'", "'wb'", "'ab'"],
+            0,
+            "`'rb'` stands for *read-binary*.",
+            .fileIO
+        )
+    }
+
+    static func loggingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which function emits an INFO-level log message?",
+            ["logging.info()", "logging.debug()", "logging.warning()", "logging.error()"],
+            0,
+            "`logging.info()` logs at INFO level.",
+            .logging
+        )
+    }
+
+    static func testingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which assertion style is preferred by pytest?",
+            ["Plain `assert` statement", "`self.assertEqual`", "`expect`", "`assertThat`"],
+            0,
+            "Pytest rewrites Python’s `assert` for rich output.",
+            .testing
+        )
+    }
+
     static func patternMatchingQuestion() -> DiscreteMathQuestion {
-        make("The `_` symbol in a `switch` case represents …?",
-             ["A wildcard pattern", "A default enum case", "Nil coalescing", "Type erasure"], 0,
-             "Wildcard `_` matches any remaining values.", .patternMatching)
-    }
-    static func typeInferenceQuestion() -> DiscreteMathQuestion {
-        make("Type inference in Swift allows …?",
-             ["Omitting explicit type annotations", "Runtime reflection only", "Dynamic typing", "Skipping compilation"], 0,
-             "The compiler deduces types from context.", .typeInference)
-    }
-    static func codableQuestion() -> DiscreteMathQuestion {
-        make("`Codable` is a type alias for …?",
-             ["Encodable & Decodable", "Hashable & Equatable", "Sendable & Decodable", "RawRepresentable & CaseIterable"], 0,
-             "`Codable` simplifies serialization of data structures.", .codable)
-    }
-    static func opaqueTypesQuestion() -> DiscreteMathQuestion {
-        make("Which keyword introduces an opaque return type?",
-             ["some", "any", "Self", "opaque"], 0,
-             "`some` hides the concrete return type behind a protocol.", .opaqueTypes)
-    }
-    static func existentialTypesQuestion() -> DiscreteMathQuestion {
-        make("What does the `any` keyword denote in Swift?",
-             ["An existential type", "A generic parameter", "An Objective-C class", "A macro expansion"], 0,
-             "`any Protocol` forms an existential container hiding the concrete type.", .existentialTypes)
-    }
-    static func moveOnlyTypesQuestion() -> DiscreteMathQuestion {
-        make("Move-only types are designed primarily to …?",
-             ["Prevent implicit copies", "Enable multiple inheritance", "Allow reflection", "Disable ARC"], 0,
-             "They enforce single ownership to improve performance & safety.", .moveOnlyTypes)
-    }
-    static func unsafePointersQuestion() -> DiscreteMathQuestion {
-        make("Which Swift type lets you work with raw memory addresses?",
-             ["UnsafePointer", "AnyPointer", "RawAddress", "MemoryRef"], 0,
-             "`UnsafePointer` and its mutable variant expose raw memory.", .unsafePointers)
+        make(
+            "Which keyword introduces structural pattern matching?",
+            ["match", "switch", "case", "pattern"],
+            0,
+            "`match` at top level followed by `case` clauses.",
+            .patternMatching
+        )
     }
 
-    // MARK: - Tooling & packages
-    static func swiftPackageManagerQuestion() -> DiscreteMathQuestion {
-        make("Dependencies in Swift Package Manager are declared in …?",
-             ["Package.swift", "Podfile", "Cartfile", "build.gradle"], 0,
-             "`Package.swift` defines products, targets, and dependencies.", .swiftPackageManager)
-    }
-    static func doccQuestion() -> DiscreteMathQuestion {
-        make("DocC is primarily used to …?",
-             ["Generate API documentation", "Manage code signing", "Debug LLDB sessions", "Profile performance"], 0,
-             "DocC converts Markdown comments into browsable documentation.", .docc)
-    }
-    static func swiftPlaygroundsQuestion() -> DiscreteMathQuestion {
-        make("Swift Playgrounds is best described as …?",
-             ["An interactive Swift learning environment", "A continuous integration service", "A documentation tool", "A memory profiler"], 0,
-             "Playgrounds provide immediate feedback while you experiment with Swift.", .swiftPlaygrounds)
-    }
-    static func swiftLintQuestion() -> DiscreteMathQuestion {
-        make("SwiftLint is primarily used to …?",
-             ["Enforce style and lint rules", "Manage dependencies", "Generate docs", "Profile memory"], 0,
-             "SwiftLint scans code for style violations and best-practice issues.", .swiftLint)
+    static func virtualEnvQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which command creates a virtual environment using the std-lib?",
+            ["python -m venv env", "pip install virtualenv", "conda create -n env", "virtualenv env"],
+            0,
+            "`python -m venv` is built-in since 3.3.",
+            .virtualEnv
+        )
     }
 
-    // MARK: - SwiftUI
-    static func swiftUIQuestion() -> DiscreteMathQuestion {
-        make("In SwiftUI, UI is defined using …?",
-             ["Structs conforming to `View`", "Storyboards", "XIBs", "Nib files"], 0,
-             "SwiftUI views are value-type structs with declarative syntax.", .swiftUI)
-    }
-    static func viewModifiersQuestion() -> DiscreteMathQuestion {
-        make("Calling `.padding()` on a SwiftUI view is an example of …?",
-             ["A view modifier", "A property wrapper", "A macro expansion", "A storyboard segue"], 0,
-             "View modifiers return new views with added behavior or style.", .viewModifiers)
-    }
-    static func navigationStackQuestion() -> DiscreteMathQuestion {
-        make("`NavigationStack` replaces which older SwiftUI API?",
-             ["NavigationView", "TabView", "List", "Form"], 0,
-             "NavigationStack supports data-driven navigation & deep-linking.", .navigationStack)
-    }
-    static func animationsQuestion() -> DiscreteMathQuestion {
-        make("Which function wraps view changes in an explicit SwiftUI animation?",
-             ["withAnimation {}", "animate {}", "UIView.animate()", "startAnimation"], 0,
-             "`withAnimation` animates property changes.", .animations)
-    }
-    static func gesturesQuestion() -> DiscreteMathQuestion {
-        make("`TapGesture` and `DragGesture` are examples of …?",
-             ["SwiftUI gestures", "UIKit recognizers", "Combine publishers", "Core Motion APIs"], 0,
-             "SwiftUI gestures attach interactive behavior to views.", .gestures)
-    }
-    static func environmentValuesQuestion() -> DiscreteMathQuestion {
-        make("Use which property wrapper to read a value from the SwiftUI environment?",
-             ["@Environment", "@State", "@Binding", "@ObservedObject"], 0,
-             "`@Environment` reads shared values like locale or colorScheme.", .environmentValues)
-    }
-    static func stateManagementQuestion() -> DiscreteMathQuestion {
-        make("Which property wrapper creates the single source of truth for a view’s local state?",
-             ["@State", "@Binding", "@EnvironmentObject", "@Published"], 0,
-             "`@State` owns view-local, value-typed state.", .stateManagement)
+    static func performanceQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which decorator memoises function results in std-lib?",
+            ["functools.lru_cache", "functools.cache", "functools.memoize", "lru"],
+            0,
+            "`functools.lru_cache` caches call results.",
+            .performance
+        )
     }
 
-    // MARK: - Xcode topics
-    static func xcodeProjectQuestion() -> DiscreteMathQuestion {
-        make("A single Xcode project can contain one or more …?",
-             ["targets", "schemes", "workspaces", "packages"], 0,
-             "Targets compile code/products like apps or frameworks.", .xcodeProject)
+    static func itertoolsFunctoolsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which `itertools` function returns a Cartesian product?",
+            ["product", "chain", "zip_longest", "combinations"],
+            0,
+            "`itertools.product` computes Cartesian products.",
+            .itertoolsFunctools
+        )
     }
-    static func interfaceBuilderQuestion() -> DiscreteMathQuestion {
-        make("Which Xcode component lets you design UI visually?",
-             ["Interface Builder", "Instruments", "Source Control Navigator", "Console"], 0,
-             "Interface Builder works with storyboards, XIBs, and SwiftUI previews.", .interfaceBuilder)
+
+    // ──────────────────────────────────────────────────────────
+    // NEW  – 20 additional question builders
+    // ──────────────────────────────────────────────────────────
+    static func indentationQuestion() -> DiscreteMathQuestion {
+        make(
+            "According to PEP 8, how many spaces should one indentation level be?",
+            ["4", "2", "Tab character", "8"],
+            0,
+            "PEP 8 mandates 4 spaces per level; avoid tabs.",
+            .indentation
+        )
     }
-    static func xcodeDebuggerQuestion() -> DiscreteMathQuestion {
-        make("To pause execution at a specific line in Xcode you set a …?",
-             ["breakpoint", "checkpoint", "anchor", "flag"], 0,
-             "Breakpoints let you inspect state at runtime.", .xcodeDebugger)
+
+    static func dataTypesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which of these is an *immutable* built-in sequence type?",
+            ["tuple", "list", "dict", "set"],
+            0,
+            "`tuple` cannot be modified after creation.",
+            .dataTypes
+        )
     }
-    static func unitTestingQuestion() -> DiscreteMathQuestion {
-        make("Which framework is used for unit testing in Xcode?",
-             ["XCTest", "JUnit", "Mocha", "NUnit"], 0,
-             "`XCTest` provides assertions, expectations, and test runners.", .unitTesting)
+
+    static func listsTuplesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which list method appends a single element to the end?",
+            ["append()", "add()", "push()", "extend()"],
+            0,
+            "`list.append(x)` adds *one* element.",
+            .listsTuples
+        )
     }
-    static func instrumentsQuestion() -> DiscreteMathQuestion {
-        make("The Instruments Time Profiler tool is primarily used to analyze …?",
-             ["CPU usage", "Memory leaks", "Network traffic", "Energy impact"], 0,
-             "Time Profiler samples stacks to measure CPU hotspots.", .instruments)
+
+    static func setsDictsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which operator tests membership in a dictionary’s *keys*?",
+            ["in", "has", "contains", "exists"],
+            0,
+            "`key in my_dict` checks key membership.",
+            .setsDicts
+        )
     }
-    static func buildSettingsQuestion() -> DiscreteMathQuestion {
-        make("Compiler and linker flags are configured in Xcode's …?",
-             ["Build Settings tab", "General tab", "Info tab", "Build Phases tab"], 0,
-             "The Build Settings tab exposes granular configuration for each target.", .buildSettings)
+
+    static func slicingQuestion() -> DiscreteMathQuestion {
+        make(
+            "What is the result of \"abcde\"[1:4] ?",
+            ["\"bcd\"", "\"abc\"", "\"bcde\"", "\"abcd\""],
+            0,
+            "Slice is inclusive of start index 1 and exclusive of stop index 4.",
+            .slicing
+        )
     }
-    static func sourceControlQuestion() -> DiscreteMathQuestion {
-        make("Which navigator shows commit history in Xcode?",
-             ["Source Control Navigator", "Debug Navigator", "Issue Navigator", "Trace Navigator"], 0,
-             "Source Control Navigator integrates Git operations.", .sourceControl)
+
+    static func variableScopeQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which keyword re-binds an *enclosing-scope* variable inside a nested function?",
+            ["nonlocal", "global", "outer", "static"],
+            0,
+            "`nonlocal` targets the nearest enclosing (non-global) scope.",
+            .variableScope
+        )
     }
-    static func signingCapabilitiesQuestion() -> DiscreteMathQuestion {
-        make("Code signing identities are configured in Xcode's …?",
-             ["Signing & Capabilities tab", "General tab", "Build Settings", "Preview canvas"], 0,
-             "Signing & Capabilities manages certificates and entitlements.", .signingCapabilities)
+
+    static func builtinsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which built-in converts an iterable into a *set*?",
+            ["set()", "list()", "tuple()", "dict()"],
+            0,
+            "`set(iterable)` removes duplicates and returns a set.",
+            .builtins
+        )
     }
-    static func previewsQuestion() -> DiscreteMathQuestion {
-        make("SwiftUI previews rely on types conforming to …?",
-             ["PreviewProvider", "Scene", "App", "ObservableObject"], 0,
-             "`PreviewProvider` supplies sample views for live rendering.", .previews)
+
+    static func sortingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which parameter of `sorted()` lets you supply a custom key function?",
+            ["key", "cmp", "order", "by"],
+            0,
+            "`sorted(seq, key=str.lower)` for case-insensitive sort.",
+            .sorting
+        )
     }
-    static func xcodeCloudQuestion() -> DiscreteMathQuestion {
-        make("Xcode Cloud primarily provides …?",
-             ["Continuous integration and delivery", "Memory profiling", "Visual UI design", "Static code analysis"], 0,
-             "Xcode Cloud automates building, testing, and distributing apps.", .xcodeCloud)
+
+    static func regexQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which std-lib module provides regular expressions?",
+            ["re", "regex", "pattern", "regexp"],
+            0,
+            "`import re` gives access to regex functionality.",
+            .regex
+        )
     }
-    static func simulatorsQuestion() -> DiscreteMathQuestion {
-        make("Xcode Simulators let you …?",
-             ["Run apps on virtual devices", "Generate documentation", "Upload builds to TestFlight", "Edit storyboards"], 0,
-             "Simulators emulate hardware and OS versions for testing.", .simulators)
+
+    static func serializationQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which function serialises a Python object to a JSON *string*?",
+            ["json.dumps()", "json.dump()", "json.loads()", "json.load()"],
+            0,
+            "`json.dumps(obj)` → str; `dump()` writes to a file.",
+            .serialization
+        )
     }
-    static func memoryGraphDebuggerQuestion() -> DiscreteMathQuestion {
-        make("The Memory Graph Debugger helps you detect …?",
-             ["Retain cycles and leaks", "CPU hotspots", "Network latency", "App Store compliance"], 0,
-             "It visualizes object graphs to track down leaks.", .memoryGraphDebugger)
+
+    static func subprocessQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which `subprocess` helper executes a command and returns a `CompletedProcess`?",
+            ["subprocess.run()", "subprocess.call()", "subprocess.Popen()", "subprocess.check_output()"],
+            0,
+            "`run()` is a high-level wrapper introduced in Python 3.5.",
+            .subprocessModule
+        )
     }
-    static func testFlightQuestion() -> DiscreteMathQuestion {
-        make("TestFlight is mainly used to …?",
-             ["Distribute beta builds to testers", "Profile GPU usage", "Design storyboards", "Run unit tests"], 0,
-             "TestFlight delivers prerelease apps through App Store Connect.", .testFlight)
+
+    static func networkingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which THIRD-PARTY library is famous for simplifying HTTP requests?",
+            ["Requests", "urllib", "http.client", "aiohttp"],
+            0,
+            "`Requests` (pip install requests) offers a friendly API.",
+            .networking
+        )
     }
-    static func codeSnippetsQuestion() -> DiscreteMathQuestion {
-        make("The shortcut to create a code snippet from selected source is …?",
-             ["Drag-and-drop into the Snippets Library", "⌘C then ⌘V", "Right-click › Create Snippet", "Save as Template"], 0,
-             "Drag selected code into the Code Snippets Library to save it.", .codeSnippets)
+
+    static func oopInheritanceQuestion() -> DiscreteMathQuestion {
+        make(
+            "Choose the correct syntax for declaring a class *Child* that inherits from *Base*.",
+            ["class Child(Base): pass", "class Child < Base: pass", "class Child inherits Base: pass", "class Child: Base"],
+            0,
+            "Put the base class in parentheses after the class name.",
+            .oopInheritance
+        )
     }
-    static func localizationQuestion() -> DiscreteMathQuestion {
-        make("`NSLocalizedString` helps with …?",
-             ["Localization of user-visible text", "Memory debugging", "Gesture recognition", "Dependency injection"], 0,
-             "Localization adapts apps to different languages and regions.", .localization)
+
+    static func magicMethodsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which magic method makes an object *iterable*?",
+            ["__iter__", "__len__", "__call__", "__next__"],
+            0,
+            "`__iter__` must return an iterator.",
+            .magicMethods
+        )
     }
-    static func assetCatalogsQuestion() -> DiscreteMathQuestion {
-        make(".xcassets files primarily store …?",
-             ["Images, colors, and data assets", "Swift packages", "Breakpoints", "Unit tests"], 0,
-             "Asset catalogs centralize resources with variant support.", .assetCatalogs)
+
+    static func propertiesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which decorator turns a method into a read-only attribute?",
+            ["@property", "@cached_property", "@attribute", "@getter"],
+            0,
+            "`@property` decorates a zero-argument method.",
+            .properties
+        )
     }
-    static func refactoringQuestion() -> DiscreteMathQuestion {
-        make("The keyboard shortcut ⌥-⌘-X triggers which Xcode feature?",
-             ["Refactor menu", "Run tests", "Build clean", "Open quick help"], 0,
-             "Xcode’s refactor tools rename symbols, extract methods, etc.", .refactoring)
+
+    static func advancedTypingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which typing construct restricts a value to a fixed set of literals?",
+            ["typing.Literal", "typing.Union", "typing.Any", "typing.Optional"],
+            0,
+            "`Literal[\"red\", \"green\"]` enforces specific allowed strings.",
+            .advancedTyping
+        )
     }
-    static func quickHelpQuestion() -> DiscreteMathQuestion {
-        make("Holding ⌥ (Option) and clicking a symbol opens …?",
-             ["Quick Help", "Code Snippets", "Live Preview", "Assistant Editor"], 0,
-             "Quick Help shows inline documentation for the symbol.", .quickHelp)
+
+    static func metaclassesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which dunder attribute sets a custom metaclass (Py 2 legacy style)?",
+            ["__metaclass__", "__class__", "__buildclass__", "__meta__"],
+            0,
+            "In modern code use `class X(metaclass=Meta): …` at class header.",
+            .metaclasses
+        )
+    }
+
+    static func debuggingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which built-in module provides an interactive debugger?",
+            ["pdb", "debug", "inspect", "logging"],
+            0,
+            "`import pdb; pdb.set_trace()` drops into the debugger.",
+            .debugging
+        )
+    }
+
+    static func styleGuideQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which tool auto-formats Python code according to PEP 8?",
+            ["black", "flake8", "pylint", "autopep8"],
+            0,
+            "`black` makes code *uniformly* formatted (“any colour you like”).",
+            .styleGuide
+        )
+    }
+
+    static func databaseSqliteQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which std-lib module offers built-in SQLite database support?",
+            ["sqlite3", "mysqldb", "pysqlite", "sqlalchemy"],
+            0,
+            "`sqlite3` has been in the std-lib since Python 2.5.",
+            .databaseSqlite
+        )
     }
 }

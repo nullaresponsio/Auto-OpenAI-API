@@ -6,7 +6,7 @@ from openai import OpenAI
 
 model = "o3-pro"
 instructions = (
-    "add as many topics and high quality questions for learning python as possible and update these two Swift files in full; do as great a job as you can: "
+    "without changing or adding any structs, turn these 2 swift files into the most comprehensive and greatest physics learning files possible: "
 )
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 

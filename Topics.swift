@@ -1,374 +1,221 @@
-
-//
-//  Topics.swift
-//  Swift_programming_with_XCode_tutor
-//  Updated 7/26/25 – Major expansion of Swift, SwiftUI & Xcode topics
-//
-
 import Foundation
 import SwiftUI
 
-// MARK: - Master list of all teachable / quizzable subjects
+/// Enumeration of every Python-learning topic handled by the quiz engine.
 enum Topic: String, CaseIterable, Hashable, Identifiable {
 
-    // ─────────────────── Swift fundamentals ───────────────────
-    case variableKeyword, constantKeyword, optionals, closures, structsVsClasses, protocols
-    case generics, functions, enums, errorHandling, accessControl, memoryManagement
-    case extensionsFeature, properties, subscripts
-    case guardStatement, deferStatement, lazyKeyword, typealiasKeyword
-    case stringInterpolation, tuples, collections, controlFlow                       // NEW
+    // -- Existing topics
+    case variableKeyword, constantKeyword, optionals
+    case closures, structsVsClasses, protocols
+    case generics, concurrency
+    case controlFlow, listComprehensions, dictSetComprehensions
+    case decorators
+    case contextManagers, exceptions, modulesPackages
+    case iteratorsGenerators
+    case functions, stringFormatting, fileIO, logging
+    case testing, patternMatching, virtualEnv, performance
+    case itertoolsFunctools
 
-    // ─────────────────── Advanced language ────────────────────
-    case concurrency, propertyWrappers, resultBuilders, actors, distributedActors, asyncLet, taskGroups
-    case macros, asyncSequence, patternMatching, typeInference, codable
-    case opaqueTypes, existentialTypes, moveOnlyTypes, unsafePointers                // NEW
-
-    // ─────────────────── SwiftUI ───────────────────────────────
-    case swiftUI, viewModifiers, navigationStack
-    case animations, gestures, environmentValues, stateManagement                   // NEW
-
-    // ─────────────────── Tooling & packages ────────────────────
-    case swiftPackageManager, docc, swiftPlaygrounds
-    case swiftLint                                                                     // NEW
-
-    // ─────────────────── Xcode  ────────────────────────────────
-    case xcodeProject, interfaceBuilder, xcodeDebugger, unitTesting, instruments, buildSettings
-    case sourceControl, signingCapabilities, previews, xcodeCloud, simulators
-    case memoryGraphDebugger, testFlight
-    case codeSnippets, localization, assetCatalogs, refactoring, quickHelp            // NEW
+    // -- New topics
+    case indentation, dataTypes, listsTuples, setsDicts, slicing
+    case variableScope, builtins, sorting, regex, serialization
+    case subprocessModule, networking, oopInheritance, magicMethods
+    case properties, advancedTyping, metaclasses, debugging
+    case styleGuide, databaseSqlite
 
     var id: String { rawValue }
-}
 
-// MARK: - Human-readable titles
-extension Topic {
+    /// User-facing title (≤ 25 characters each so they fit nicely in UI).
     var title: String {
         switch self {
+        // ————— Existing —————
+        case .variableKeyword:       return "Variables"
+        case .constantKeyword:       return "Constants"
+        case .optionals:             return "None & Nullability"
+        case .closures:              return "Lambda Functions"
+        case .structsVsClasses:      return "Classes & Data Classes"
+        case .protocols:             return "Protocols"
+        case .generics:              return "Type Hints & Generics"
+        case .concurrency:           return "Asyncio & Concurrency"
+        case .controlFlow:           return "Control Flow"
+        case .listComprehensions:    return "List Comprehensions"
+        case .dictSetComprehensions: return "Dict & Set Comprehensions"
+        case .decorators:            return "Decorators"
+        case .contextManagers:       return "Context Managers"
+        case .exceptions:            return "Exceptions"
+        case .modulesPackages:       return "Modules & Packages"
+        case .iteratorsGenerators:   return "Iterators & Generators"
+        case .functions:             return "Functions"
+        case .stringFormatting:      return "F-Strings"
+        case .fileIO:                return "File I/O"
+        case .logging:               return "Logging"
+        case .testing:               return "Testing & pytest"
+        case .patternMatching:       return "Pattern Matching"
+        case .virtualEnv:            return "Virtual Environments"
+        case .performance:           return "Performance"
+        case .itertoolsFunctools:    return "Itertools & functools"
 
-        // Swift fundamentals
-        case .variableKeyword:        return "Variables"
-        case .constantKeyword:        return "Constants"
-        case .optionals:              return "Optionals"
-        case .closures:               return "Closures"
-        case .structsVsClasses:       return "Structs vs Classes"
-        case .protocols:              return "Protocols"
-        case .generics:               return "Generics"
-        case .functions:              return "Functions"
-        case .enums:                  return "Enums"
-        case .errorHandling:          return "Error Handling"
-        case .accessControl:          return "Access Control"
-        case .memoryManagement:       return "Memory Management"
-        case .extensionsFeature:      return "Extensions"
-        case .properties:             return "Properties"
-        case .subscripts:             return "Subscripts"
-        case .guardStatement:         return "`guard` Statement"
-        case .deferStatement:         return "`defer` Statement"
-        case .lazyKeyword:            return "`lazy` Properties"
-        case .typealiasKeyword:       return "`typealias`"
-        case .stringInterpolation:    return "String Interpolation"
-        case .tuples:                 return "Tuples"
-        case .collections:            return "Collections"
-        case .controlFlow:            return "Control Flow"
-
-        // Advanced language
-        case .concurrency:            return "Concurrency"
-        case .propertyWrappers:       return "Property Wrappers"
-        case .resultBuilders:         return "Result Builders"
-        case .actors:                 return "Actors"
-        case .distributedActors:      return "Distributed Actors"
-        case .asyncLet:               return "async let"
-        case .taskGroups:             return "Task Groups"
-        case .macros:                 return "Macros"
-        case .asyncSequence:          return "AsyncSequence"
-        case .patternMatching:        return "Pattern Matching"
-        case .typeInference:          return "Type Inference"
-        case .codable:                return "Codable"
-        case .opaqueTypes:            return "Opaque Types"
-        case .existentialTypes:       return "Existential Types"
-        case .moveOnlyTypes:          return "Move-only Types"
-        case .unsafePointers:         return "Unsafe Pointers"
-
-        // SwiftUI
-        case .swiftUI:                return "SwiftUI"
-        case .viewModifiers:          return "View Modifiers"
-        case .navigationStack:        return "NavigationStack"
-        case .animations:             return "Animations"
-        case .gestures:               return "Gestures"
-        case .environmentValues:      return "Environment Values"
-        case .stateManagement:        return "State Management"
-
-        // Tooling & packages
-        case .swiftPackageManager:    return "Swift Package Manager"
-        case .docc:                   return "DocC"
-        case .swiftPlaygrounds:       return "Swift Playgrounds"
-        case .swiftLint:              return "SwiftLint"
-
-        // Xcode
-        case .xcodeProject:           return "Xcode Project"
-        case .interfaceBuilder:       return "Interface Builder"
-        case .xcodeDebugger:          return "Xcode Debugger"
-        case .unitTesting:            return "Unit Testing"
-        case .instruments:            return "Instruments"
-        case .buildSettings:          return "Build Settings"
-        case .sourceControl:          return "Source Control"
-        case .signingCapabilities:    return "Signing & Capabilities"
-        case .previews:               return "Previews"
-        case .xcodeCloud:             return "Xcode Cloud"
-        case .simulators:             return "Simulators"
-        case .memoryGraphDebugger:    return "Memory Graph Debugger"
-        case .testFlight:             return "TestFlight"
-        case .codeSnippets:           return "Code Snippets"
-        case .localization:           return "Localization"
-        case .assetCatalogs:          return "Asset Catalogs"
-        case .refactoring:            return "Refactoring"
-        case .quickHelp:              return "Quick Help"
+        // ————— New —————
+        case .indentation:           return "Indentation"
+        case .dataTypes:             return "Core Data Types"
+        case .listsTuples:           return "Lists & Tuples"
+        case .setsDicts:             return "Sets & Dicts"
+        case .slicing:               return "Slicing"
+        case .variableScope:         return "Variable Scope"
+        case .builtins:              return "Built-ins"
+        case .sorting:               return "Sorting"
+        case .regex:                 return "Regular Expressions"
+        case .serialization:         return "JSON & Serialising"
+        case .subprocessModule:      return "subprocess"
+        case .networking:            return "Networking"
+        case .oopInheritance:        return "OOP Inheritance"
+        case .magicMethods:          return "Magic Methods"
+        case .properties:            return "Properties"
+        case .advancedTyping:        return "Advanced Typing"
+        case .metaclasses:           return "Metaclasses"
+        case .debugging:             return "Debugging"
+        case .styleGuide:            return "Style & Formatting"
+        case .databaseSqlite:        return "sqlite3"
         }
     }
 }
 
 extension Topic { static var modularAddition: Topic { .variableKeyword } }
 
-// MARK: - Short explanations (Markdown allowed)
-struct TopicExplanations {
+/// ---------------------------------------------------------------------
+/// MARK:  Topic-centric explanations
+/// ---------------------------------------------------------------------
+private struct TopicExplanations {
     private static let map: [Topic: String] = [
 
-        // Swift fundamentals
-        .variableKeyword:     "**Variables** are declared with `var` and are mutable.",
-        .constantKeyword:     "**Constants** are declared with `let` and are immutable.",
-        .optionals:           "**Optionals** (`?`) allow a value to be either a type value or `nil`; they must be safely unwrapped.",
-        .closures:            "**Closures** are self-contained blocks of functionality that can capture surrounding context.",
-        .structsVsClasses:    "**Structs** are value types; **classes** are reference types that support inheritance.",
-        .protocols:           "**Protocols** declare a blueprint of requirements adopted by conforming types.",
-        .generics:            "**Generics** let you write flexible, reusable code that works with any type.",
-        .functions:           "`func` defines reusable code blocks that may take parameters and return values.",
-        .enums:               "**Enums** group related cases into a single type and can store associated values.",
-        .errorHandling:       "Swift **error handling** uses `throw`, `throws`, `try`, `catch`, and `rethrows`.",
-        .accessControl:       "Five levels—`open`, `public`, `internal`, `fileprivate`, `private`—govern **access control**.",
-        .memoryManagement:    "**Automatic Reference Counting (ARC)** tracks strong references to deallocate objects.",
-        .extensionsFeature:   "**Extensions** add new functionality to an existing type without subclassing.",
-        .properties:          "**Stored** and **computed** properties hold or derive values; property observers run code on change.",
-        .subscripts:          "`subscript` exposes index-like access (e.g., `matrix[row, col]`).",
-        .guardStatement:      "`guard` performs early-exit validation that must succeed for execution to proceed.",
-        .deferStatement:      "`defer` schedules code to run just before scope exits—handy for cleanup.",
-        .lazyKeyword:         "`lazy` postpones property initialization until first access.",
-        .typealiasKeyword:    "`typealias` assigns a new, usually shorter or context-specific name to an existing type.",
-        .stringInterpolation: "**String interpolation** embeds expressions inside `\"\\(…)\"` literals for type-safe formatting.",
-        .tuples:              "**Tuples** group multiple values into a single compound value `(x, y)` without creating a struct.",
-        .collections:         "Arrays, sets, and dictionaries are the core **collection** types, each with value semantics.",
-        .controlFlow:         "`if`, `guard`, `switch`, `for-in`, `while`, and `repeat-while` make up Swift **control flow**.",
+        // ————— Existing —————
+        .variableKeyword:       "**Variables** are bound with `=`; names reference objects and can re-bind freely.",
+        .constantKeyword:       "**Constants** rely on convention: ALL_CAPS at module scope (e.g. `PI = 3.14159`).",
+        .optionals:             "**None** is the singleton signifying “no value”. Use `Optional[T]` or `T | None` in type hints.",
+        .closures:              "**Lambda functions** create anonymous callables and can close over outer-scope names.",
+        .structsVsClasses:      "**Classes** model state/behaviour; `@dataclass` (PEP 557) auto-generates boilerplate.",
+        .protocols:             "**Protocols** (PEP 544) define structural contracts—implementation checked by attribute presence.",
+        .generics:              "**Generics** via `typing` enable precise, reusable APIs.",
+        .concurrency:           "**Concurrency**: `async`/`await` with `asyncio`, plus `threading` & `multiprocessing`.",
+        .controlFlow:           "**Control flow**: `if`/`elif`/`else`, `for`, `while`, `break`, `continue`, `pass`.",
+        .listComprehensions:    "**List comprehensions** build lists concisely: `[expr for x in seq if cond]`.",
+        .dictSetComprehensions: "**Dict/Set comprehensions**: `{k:v for k,v in pairs}` or `{f(x) for x in seq}`.",
+        .decorators:            "**Decorators** wrap callables and are declared with a leading `@decorator` line.",
+        .contextManagers:       "**Context managers** via `with` manage resources deterministically.",
+        .exceptions:            "**Exceptions**: raise subclasses of `Exception`; handle with `try`/`except`.",
+        .modulesPackages:       "**Modules & packages**: `.py` files + directories with `__init__.py` (pre-3.3 requirement).",
+        .iteratorsGenerators:   "**Iterators & generators**: objects with `__iter__`/`__next__`; `yield` creates generators.",
+        .functions:             "**Functions** are defined with `def`; support `*args`, `**kwargs`, annotations & defaults.",
+        .stringFormatting:      "**F-strings** (PEP 498) embed expressions: `f\"{value:.2f}\"`.",
+        .fileIO:                "**File I/O** uses `open()`, plus `pathlib.Path` for OO paths.",
+        .logging:               "**Logging** via `logging` module; configure levels, handlers & formatters.",
+        .testing:               "**Testing**: `unittest`; `pytest` offers fixtures & expressive assertions.",
+        .patternMatching:       "**Structural pattern matching** (`match`/`case`) landed in 3.10.",
+        .virtualEnv:            "**Virtual environments** (`python -m venv`, `pipenv`, `poetry`) isolate dependencies.",
+        .performance:           "**Performance**: profiling with `cProfile`, optimisation with `lru_cache`, Cython, NumPy.",
+        .itertoolsFunctools:    "**Itertools & functools** supply high-performance iterator helpers & function utilities.",
 
-        // Advanced language
-        .concurrency:         "Structured **concurrency** uses `async`/`await`, tasks, actors, and task groups.",
-        .propertyWrappers:    "`@propertyWrapper` types encapsulate get/set logic reusable on any property.",
-        .resultBuilders:      "Compile-time **result builders** convert block syntax to method chains (e.g., SwiftUI).",
-        .actors:              "**Actors** are reference types that protect mutable state from data races.",
-        .distributedActors:   "**Distributed actors** extend actors across process or network boundaries.",
-        .asyncLet:            "`async let` launches child tasks and awaits their results later.",
-        .taskGroups:          "**Task groups** spawn dynamic sets of child tasks while aggregating errors and results.",
-        .macros:              "**Macros** generate or transform code at compile time, reducing boilerplate.",
-        .asyncSequence:       "`AsyncSequence` delivers values over time and is consumed with `for await`.",
-        .patternMatching:     "**Pattern matching** (`switch`, `if case`, `guard case`) destructures and tests values.",
-        .typeInference:       "The compiler performs **type inference**, letting you omit obvious type annotations.",
-        .codable:             "`Codable` combines `Encodable` & `Decodable` for easy JSON and plist serialization.",
-        .opaqueTypes:         "`some Type` declares an **opaque return type** whose concrete type is hidden.",
-        .existentialTypes:    "An **existential** (e.g., `any Collection`) erases the concrete type behind a protocol.",
-        .moveOnlyTypes:       "**Move-only types** (upcoming) allow values that cannot be implicitly copied, enabling safe ownership transfer.",
-        .unsafePointers:      "`UnsafePointer` / `UnsafeMutablePointer` expose raw memory—useful but dangerous.",
-
-        // SwiftUI
-        .swiftUI:             "**SwiftUI** is a declarative, data-driven UI framework across Apple platforms.",
-        .viewModifiers:       "**View modifiers** are chainable methods that return a new, styled or behavioral view.",
-        .navigationStack:     "`NavigationStack` provides type-safe, data-driven navigation and deep-linking.",
-        .animations:          "Implicit and explicit **animations** interpolate view properties over time.",
-        .gestures:            "High-level **gestures** like `TapGesture` and `DragGesture` add interactivity.",
-        .environmentValues:   "`@Environment` & `EnvironmentValues` inject global app data (e.g., colorScheme).",
-        .stateManagement:     "`@State`, `@Binding`, `@ObservedObject`, `@StateObject`, and `@EnvironmentObject` drive **state management**.",
-
-        // Tooling & packages
-        .swiftPackageManager: "**Swift Package Manager** (`swift package`, `Package.swift`) handles dependency management and builds.",
-        .docc:                "**DocC** generates interactive API documentation directly from your source.",
-        .swiftPlaygrounds:    "**Swift Playgrounds** offers an interactive sandbox for rapid experimentation.",
-        .swiftLint:           "**SwiftLint** is a linter enforcing style & best-practice rules via `swiftlint.yml`.",
-
-        // Xcode
-        .xcodeProject:        "**Xcode projects** group targets, schemes, and settings defining how to build your products.",
-        .interfaceBuilder:    "**Interface Builder** provides storyboard, XIB, and SwiftUI design previews.",
-        .xcodeDebugger:       "The **Xcode debugger** leverages breakpoints and LLDB commands to inspect runtime state.",
-        .unitTesting:         "`XCTest` underpins **unit testing** and performance measurement.",
-        .instruments:         "**Instruments** profiles CPU, memory, energy, I/O, and more.",
-        .buildSettings:       "**Build settings** configure compiler, linker, and pre-/post-build phases.",
-        .sourceControl:       "**Source Control Navigator** integrates Git operations, branching, and diffs.",
-        .signingCapabilities: "**Signing & Capabilities** manages certificates, profiles, and entitlements.",
-        .previews:            "**SwiftUI previews** render UI live using `PreviewProvider`.",
-        .xcodeCloud:          "**Xcode Cloud** delivers continuous integration and deployment pipelines.",
-        .simulators:          "**Simulators** emulate hardware and multiple OS versions for on-Mac testing.",
-        .memoryGraphDebugger: "**Memory Graph Debugger** visualizes retain cycles and leaks.",
-        .testFlight:          "**TestFlight** distributes beta builds via App Store Connect.",
-        .codeSnippets:        "**Code Snippets Library** stores reusable templates triggered by shortcuts.",
-        .localization:        "**Localization** tools translate strings, assets, and storyboards.",
-        .assetCatalogs:       "**Asset Catalogs** organize images, colors, data assets, and variants.",
-        .refactoring:         "**Refactoring** commands (⌥-⌘-X) rename symbols, extract methods, and more.",
-        .quickHelp:           "**Quick Help** (⌥-single-click) surfaces documentation inline."
+        // ————— New —————
+        .indentation:           "**Indentation** is syntactic—PEP 8 mandates 4 spaces; mixing tabs & spaces raises `TabError`.",
+        .dataTypes:             "**Core data types**: `int`, `float`, `complex`, `bool`, `str`, `bytes`, `list`, `tuple`, `set`, `dict`.",
+        .listsTuples:           "**Lists** are mutable ordered sequences; **tuples** are immutable and thus hashable if their elements are.",
+        .setsDicts:             "**Sets** store unique unordered items; **dicts** map keys → values and preserve insertion order (≥3.7).",
+        .slicing:               "**Slicing** `[start:stop:step]` returns subsequences; omit indices for defaults; negative indices count from the end.",
+        .variableScope:         "**Scope** follows LEGB (Local, Enclosing, Global, Built-in); `global` & `nonlocal` re-bind outer scopes.",
+        .builtins:              "**Built-ins** (`len`, `sum`, `enumerate`, `zip`, `map`, …) are always available without import.",
+        .sorting:               "**Sorting**: `sorted(iterable, key=…, reverse=…)` returns a new list; `list.sort()` sorts in-place.",
+        .regex:                 "**Regular expressions** via `re` with helpers like `search`, `match`, `findall`, and compiled patterns.",
+        .serialization:         "**JSON serialisation** uses `json.dumps/loads`; for arbitrary objects use `pickle` (unsafe) or 3rd-party `yaml`.",
+        .subprocessModule:      "**subprocess** executes external commands; high-level `run()` wraps `Popen` and returns `CompletedProcess`.",
+        .networking:            "**Networking**: low-level `socket`; `urllib.request` for HTTP; 3rd-party **Requests** for ergonomic HTTP.",
+        .oopInheritance:        "**Inheritance** allows subclasses to extend or override base behaviour; multiple inheritance is supported.",
+        .magicMethods:          "**Magic (dunder) methods** (`__str__`, `__len__`, `__iter__`, …) integrate objects with Python protocols.",
+        .properties:            "`@property` turns a method into an attribute; optional setters/getters give controlled access.",
+        .advancedTyping:        "**Advanced typing**: `Union`, `Literal`, `TypedDict`, `NewType`, generics with `TypeVar`, `ParamSpec`, `Self`.",
+        .metaclasses:           "**Metaclasses** customise class creation via `__new__`/`__init__`; declare with `class X(metaclass=Meta): …`",
+        .debugging:             "**Debugging**: `pdb`, `breakpoint()` (3.7+), IDE debuggers, `logging` & assertions.",
+        .styleGuide:            "**Style**: PEP 8, `black` auto-formatter, `flake8`/`pylint` linters, `isort` for imports.",
+        .databaseSqlite:        "**sqlite3** std-lib module offers zero-config relational DBs via `sqlite3.connect()` and cursors."
     ]
 
     static func text(for topic: Topic) -> String { map[topic] ?? "" }
 }
 
-// MARK: - Quiz-supporting helper types (unchanged)
-struct DiscreteMathQuestion: Identifiable, Hashable {
-    var id = UUID()
-    let question: String
-    let answers: [String]
-    let correctAnswerIndex: Int
-    let explanation: String
-    let topic: Topic
-}
-
-struct Question: Identifiable, Hashable {
-    let id = UUID()
-    let prompt: String
-    let answer: String
-}
-
-enum QuizQuestion: Identifiable, Hashable {
-    case multiple(DiscreteMathQuestion)
-    case submit(Question)
-
-    var id: UUID {
-        switch self {
-        case .multiple(let q): return q.id
-        case .submit(let q):   return q.id
-        }
-    }
-    var prompt: String {
-        switch self {
-        case .multiple(let q): return q.question
-        case .submit(let q):   return q.prompt
-        }
-    }
-    var isMultipleChoice: Bool { if case .multiple = self { return true } else { return false } }
-    var options: [String]?    { if case .multiple(let q) = self { return q.answers } else { return nil } }
-    var solution: String {
-        switch self {
-        case .multiple(let q): return q.answers[q.correctAnswerIndex]
-        case .submit(let q):   return q.answer
-        }
-    }
-}
-
-// MARK: - Topic-specific question creation dispatcher
+/// ---------------------------------------------------------------------
+/// MARK:  Question factory helpers
+/// ---------------------------------------------------------------------
 extension Topic {
+
+    /// Returns a *multiple-choice* question object for this topic.
     func generated() -> DiscreteMathQuestion {
         switch self {
+        // ————— Existing generators —————
+        case .variableKeyword:       return QuestionGenerator.variableKeywordQuestion()
+        case .constantKeyword:       return QuestionGenerator.constantKeywordQuestion()
+        case .optionals:             return QuestionGenerator.optionalsQuestion()
+        case .closures:              return QuestionGenerator.closuresQuestion()
+        case .structsVsClasses:      return QuestionGenerator.structsVsClassesQuestion()
+        case .protocols:             return QuestionGenerator.protocolsQuestion()
+        case .generics:              return QuestionGenerator.genericsQuestion()
+        case .concurrency:           return QuestionGenerator.concurrencyQuestion()
+        case .controlFlow:           return QuestionGenerator.controlFlowQuestion()
+        case .listComprehensions:    return QuestionGenerator.listComprehensionsQuestion()
+        case .dictSetComprehensions: return QuestionGenerator.dictSetComprehensionsQuestion()
+        case .decorators:            return QuestionGenerator.decoratorsQuestion()
+        case .contextManagers:       return QuestionGenerator.contextManagersQuestion()
+        case .exceptions:            return QuestionGenerator.exceptionsQuestion()
+        case .modulesPackages:       return QuestionGenerator.modulesPackagesQuestion()
+        case .iteratorsGenerators:   return QuestionGenerator.iteratorsGeneratorsQuestion()
+        case .functions:             return QuestionGenerator.functionsQuestion()
+        case .stringFormatting:      return QuestionGenerator.stringFormattingQuestion()
+        case .fileIO:                return QuestionGenerator.fileIOQuestion()
+        case .logging:               return QuestionGenerator.loggingQuestion()
+        case .testing:               return QuestionGenerator.testingQuestion()
+        case .patternMatching:       return QuestionGenerator.patternMatchingQuestion()
+        case .virtualEnv:            return QuestionGenerator.virtualEnvQuestion()
+        case .performance:           return QuestionGenerator.performanceQuestion()
+        case .itertoolsFunctools:    return QuestionGenerator.itertoolsFunctoolsQuestion()
 
-        // Swift fundamentals
-        case .variableKeyword:        return QuestionGenerator.variableKeywordQuestion()
-        case .constantKeyword:        return QuestionGenerator.constantKeywordQuestion()
-        case .optionals:              return QuestionGenerator.optionalsQuestion()
-        case .closures:               return QuestionGenerator.closuresQuestion()
-        case .structsVsClasses:       return QuestionGenerator.structsVsClassesQuestion()
-        case .protocols:              return QuestionGenerator.protocolsQuestion()
-        case .generics:               return QuestionGenerator.genericsQuestion()
-        case .functions:              return QuestionGenerator.functionsQuestion()
-        case .enums:                  return QuestionGenerator.enumsQuestion()
-        case .errorHandling:          return QuestionGenerator.errorHandlingQuestion()
-        case .accessControl:          return QuestionGenerator.accessControlQuestion()
-        case .memoryManagement:       return QuestionGenerator.memoryManagementQuestion()
-        case .extensionsFeature:      return QuestionGenerator.extensionsFeatureQuestion()
-        case .properties:             return QuestionGenerator.propertiesQuestion()
-        case .subscripts:             return QuestionGenerator.subscriptsQuestion()
-        case .guardStatement:         return QuestionGenerator.guardStatementQuestion()
-        case .deferStatement:         return QuestionGenerator.deferStatementQuestion()
-        case .lazyKeyword:            return QuestionGenerator.lazyKeywordQuestion()
-        case .typealiasKeyword:       return QuestionGenerator.typealiasKeywordQuestion()
-        case .stringInterpolation:    return QuestionGenerator.stringInterpolationQuestion()
-        case .tuples:                 return QuestionGenerator.tuplesQuestion()
-        case .collections:            return QuestionGenerator.collectionsQuestion()
-        case .controlFlow:            return QuestionGenerator.controlFlowQuestion()
-
-        // Advanced language
-        case .concurrency:            return QuestionGenerator.concurrencyQuestion()
-        case .propertyWrappers:       return QuestionGenerator.propertyWrappersQuestion()
-        case .resultBuilders:         return QuestionGenerator.resultBuildersQuestion()
-        case .actors:                 return QuestionGenerator.actorsQuestion()
-        case .distributedActors:      return QuestionGenerator.distributedActorsQuestion()
-        case .asyncLet:               return QuestionGenerator.asyncLetQuestion()
-        case .taskGroups:             return QuestionGenerator.taskGroupsQuestion()
-        case .macros:                 return QuestionGenerator.macrosQuestion()
-        case .asyncSequence:          return QuestionGenerator.asyncSequenceQuestion()
-        case .patternMatching:        return QuestionGenerator.patternMatchingQuestion()
-        case .typeInference:          return QuestionGenerator.typeInferenceQuestion()
-        case .codable:                return QuestionGenerator.codableQuestion()
-        case .opaqueTypes:            return QuestionGenerator.opaqueTypesQuestion()
-        case .existentialTypes:       return QuestionGenerator.existentialTypesQuestion()
-        case .moveOnlyTypes:          return QuestionGenerator.moveOnlyTypesQuestion()
-        case .unsafePointers:         return QuestionGenerator.unsafePointersQuestion()
-
-        // SwiftUI
-        case .swiftUI:                return QuestionGenerator.swiftUIQuestion()
-        case .viewModifiers:          return QuestionGenerator.viewModifiersQuestion()
-        case .navigationStack:        return QuestionGenerator.navigationStackQuestion()
-        case .animations:             return QuestionGenerator.animationsQuestion()
-        case .gestures:               return QuestionGenerator.gesturesQuestion()
-        case .environmentValues:      return QuestionGenerator.environmentValuesQuestion()
-        case .stateManagement:        return QuestionGenerator.stateManagementQuestion()
-
-        // Tooling & packages
-        case .swiftPackageManager:    return QuestionGenerator.swiftPackageManagerQuestion()
-        case .docc:                   return QuestionGenerator.doccQuestion()
-        case .swiftPlaygrounds:       return QuestionGenerator.swiftPlaygroundsQuestion()
-        case .swiftLint:              return QuestionGenerator.swiftLintQuestion()
-
-        // Xcode
-        case .xcodeProject:           return QuestionGenerator.xcodeProjectQuestion()
-        case .interfaceBuilder:       return QuestionGenerator.interfaceBuilderQuestion()
-        case .xcodeDebugger:          return QuestionGenerator.xcodeDebuggerQuestion()
-        case .unitTesting:            return QuestionGenerator.unitTestingQuestion()
-        case .instruments:            return QuestionGenerator.instrumentsQuestion()
-        case .buildSettings:          return QuestionGenerator.buildSettingsQuestion()
-        case .sourceControl:          return QuestionGenerator.sourceControlQuestion()
-        case .signingCapabilities:    return QuestionGenerator.signingCapabilitiesQuestion()
-        case .previews:               return QuestionGenerator.previewsQuestion()
-        case .xcodeCloud:             return QuestionGenerator.xcodeCloudQuestion()
-        case .simulators:             return QuestionGenerator.simulatorsQuestion()
-        case .memoryGraphDebugger:    return QuestionGenerator.memoryGraphDebuggerQuestion()
-        case .testFlight:             return QuestionGenerator.testFlightQuestion()
-        case .codeSnippets:           return QuestionGenerator.codeSnippetsQuestion()
-        case .localization:           return QuestionGenerator.localizationQuestion()
-        case .assetCatalogs:          return QuestionGenerator.assetCatalogsQuestion()
-        case .refactoring:            return QuestionGenerator.refactoringQuestion()
-        case .quickHelp:              return QuestionGenerator.quickHelpQuestion()
+        // ————— New generators —————
+        case .indentation:           return QuestionGenerator.indentationQuestion()
+        case .dataTypes:             return QuestionGenerator.dataTypesQuestion()
+        case .listsTuples:           return QuestionGenerator.listsTuplesQuestion()
+        case .setsDicts:             return QuestionGenerator.setsDictsQuestion()
+        case .slicing:               return QuestionGenerator.slicingQuestion()
+        case .variableScope:         return QuestionGenerator.variableScopeQuestion()
+        case .builtins:              return QuestionGenerator.builtinsQuestion()
+        case .sorting:               return QuestionGenerator.sortingQuestion()
+        case .regex:                 return QuestionGenerator.regexQuestion()
+        case .serialization:         return QuestionGenerator.serializationQuestion()
+        case .subprocessModule:      return QuestionGenerator.subprocessQuestion()
+        case .networking:            return QuestionGenerator.networkingQuestion()
+        case .oopInheritance:        return QuestionGenerator.oopInheritanceQuestion()
+        case .magicMethods:          return QuestionGenerator.magicMethodsQuestion()
+        case .properties:            return QuestionGenerator.propertiesQuestion()
+        case .advancedTyping:        return QuestionGenerator.advancedTypingQuestion()
+        case .metaclasses:           return QuestionGenerator.metaclassesQuestion()
+        case .debugging:             return QuestionGenerator.debuggingQuestion()
+        case .styleGuide:            return QuestionGenerator.styleGuideQuestion()
+        case .databaseSqlite:        return QuestionGenerator.databaseSqliteQuestion()
         }
     }
 
+    /// Helper that converts a multiple-choice question into a simple prompt–answer pair.
     func randomQuestion() -> Question {
         let q = generated()
         return Question(prompt: q.question, answer: q.answers[q.correctAnswerIndex])
     }
 
+    /// Randomly returns either a multiple-choice or short-answer wrapper.
     func mixedQuestion() -> QuizQuestion {
         Bool.random() ? .multiple(generated()) : .submit(randomQuestion())
     }
 
     var explanation: String { TopicExplanations.text(for: self) }
-    var short: String        { String(title.prefix(12)) }
+    var short: String       { String(title.prefix(12)) }
 
     func answer(for _: String) -> String {
         "\(explanation)\n\n(For full details, ask about a concrete example.)"
     }
 }
-
-// MARK: - Quiz factory
-struct QuizFactory {
-    static func generate(count: Int = 20) -> [QuizQuestion] {
-        var out: [QuizQuestion] = []
-        var topics = Topic.allCases.shuffled()
-        while out.count < count {
-            if topics.isEmpty { topics = Topic.allCases.shuffled() }
-            out.append(topics.removeFirst().mixedQuestion())
-        }
-        return out.shuffled()
-    }
-}
-
 

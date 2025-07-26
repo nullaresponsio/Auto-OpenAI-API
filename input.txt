@@ -1,7 +1,10 @@
 import Foundation
 import SwiftUI
 
+/// Enumeration of every Python-learning topic handled by the quiz engine.
 enum Topic: String, CaseIterable, Hashable, Identifiable {
+
+    // -- Existing topics
     case variableKeyword, constantKeyword, optionals
     case closures, structsVsClasses, protocols
     case generics, concurrency
@@ -13,75 +16,140 @@ enum Topic: String, CaseIterable, Hashable, Identifiable {
     case testing, patternMatching, virtualEnv, performance
     case itertoolsFunctools
 
+    // -- New topics
+    case indentation, dataTypes, listsTuples, setsDicts, slicing
+    case variableScope, builtins, sorting, regex, serialization
+    case subprocessModule, networking, oopInheritance, magicMethods
+    case properties, advancedTyping, metaclasses, debugging
+    case styleGuide, databaseSqlite
+
     var id: String { rawValue }
 
+    /// User-facing title (≤ 25 characters each so they fit nicely in UI).
     var title: String {
         switch self {
+        // ————— Existing —————
         case .variableKeyword:       return "Variables"
         case .constantKeyword:       return "Constants"
         case .optionals:             return "None & Nullability"
         case .closures:              return "Lambda Functions"
         case .structsVsClasses:      return "Classes & Data Classes"
         case .protocols:             return "Protocols"
-        case .generics:              return "Type Hinting & Generics"
+        case .generics:              return "Type Hints & Generics"
         case .concurrency:           return "Asyncio & Concurrency"
         case .controlFlow:           return "Control Flow"
         case .listComprehensions:    return "List Comprehensions"
         case .dictSetComprehensions: return "Dict & Set Comprehensions"
         case .decorators:            return "Decorators"
         case .contextManagers:       return "Context Managers"
-        case .exceptions:            return "Exceptions & Error Handling"
+        case .exceptions:            return "Exceptions"
         case .modulesPackages:       return "Modules & Packages"
         case .iteratorsGenerators:   return "Iterators & Generators"
-        case .functions:             return "Functions & Parameters"
-        case .stringFormatting:      return "F-Strings & Formatting"
+        case .functions:             return "Functions"
+        case .stringFormatting:      return "F-Strings"
         case .fileIO:                return "File I/O"
         case .logging:               return "Logging"
         case .testing:               return "Testing & pytest"
         case .patternMatching:       return "Pattern Matching"
         case .virtualEnv:            return "Virtual Environments"
-        case .performance:           return "Performance & Optimization"
-        case .itertoolsFunctools:    return "Itertools & Functools"
+        case .performance:           return "Performance"
+        case .itertoolsFunctools:    return "Itertools & functools"
+
+        // ————— New —————
+        case .indentation:           return "Indentation"
+        case .dataTypes:             return "Core Data Types"
+        case .listsTuples:           return "Lists & Tuples"
+        case .setsDicts:             return "Sets & Dicts"
+        case .slicing:               return "Slicing"
+        case .variableScope:         return "Variable Scope"
+        case .builtins:              return "Built-ins"
+        case .sorting:               return "Sorting"
+        case .regex:                 return "Regular Expressions"
+        case .serialization:         return "JSON & Serialising"
+        case .subprocessModule:      return "subprocess"
+        case .networking:            return "Networking"
+        case .oopInheritance:        return "OOP Inheritance"
+        case .magicMethods:          return "Magic Methods"
+        case .properties:            return "Properties"
+        case .advancedTyping:        return "Advanced Typing"
+        case .metaclasses:           return "Metaclasses"
+        case .debugging:             return "Debugging"
+        case .styleGuide:            return "Style & Formatting"
+        case .databaseSqlite:        return "sqlite3"
         }
     }
 }
 
 extension Topic { static var modularAddition: Topic { .variableKeyword } }
 
+/// ---------------------------------------------------------------------
+/// MARK:  Topic-centric explanations
+/// ---------------------------------------------------------------------
 private struct TopicExplanations {
     private static let map: [Topic: String] = [
-        .variableKeyword:       "**Variables** are bound with `=`; names reference objects and can rebind freely.",
+
+        // ————— Existing —————
+        .variableKeyword:       "**Variables** are bound with `=`; names reference objects and can re-bind freely.",
         .constantKeyword:       "**Constants** rely on convention: ALL_CAPS at module scope (e.g. `PI = 3.14159`).",
-        .optionals:             "**None** is the singleton signifying 'no value'. Use `Optional[T]` or `T | None` in type hints.",
+        .optionals:             "**None** is the singleton signifying “no value”. Use `Optional[T]` or `T | None` in type hints.",
         .closures:              "**Lambda functions** create anonymous callables and can close over outer-scope names.",
-        .structsVsClasses:      "**Classes** model state/behavior; `@dataclass` (PEP 557) auto-generates boilerplate.",
-        .protocols:             "**Protocols** (PEP 544) define structural contracts—implementation by attribute presence.",
-        .generics:              "**Generics** via `typing` enable precise reusable APIs.",
-        .concurrency:           "**Concurrency**: `async`/`await` with `asyncio`, plus `threading`, `multiprocessing`.",
+        .structsVsClasses:      "**Classes** model state/behaviour; `@dataclass` (PEP 557) auto-generates boilerplate.",
+        .protocols:             "**Protocols** (PEP 544) define structural contracts—implementation checked by attribute presence.",
+        .generics:              "**Generics** via `typing` enable precise, reusable APIs.",
+        .concurrency:           "**Concurrency**: `async`/`await` with `asyncio`, plus `threading` & `multiprocessing`.",
         .controlFlow:           "**Control flow**: `if`/`elif`/`else`, `for`, `while`, `break`, `continue`, `pass`.",
         .listComprehensions:    "**List comprehensions** build lists concisely: `[expr for x in seq if cond]`.",
         .dictSetComprehensions: "**Dict/Set comprehensions**: `{k:v for k,v in pairs}` or `{f(x) for x in seq}`.",
-        .decorators:            "**Decorators** wrap callables; declared `@decorator` to extend behavior.",
-        .contextManagers:       "**Context managers** via `with` manage resources.",
+        .decorators:            "**Decorators** wrap callables and are declared with a leading `@decorator` line.",
+        .contextManagers:       "**Context managers** via `with` manage resources deterministically.",
         .exceptions:            "**Exceptions**: raise subclasses of `Exception`; handle with `try`/`except`.",
-        .modulesPackages:       "**Modules & packages**: `.py` files and directories with `__init__.py`.",
+        .modulesPackages:       "**Modules & packages**: `.py` files + directories with `__init__.py` (pre-3.3 requirement).",
         .iteratorsGenerators:   "**Iterators & generators**: objects with `__iter__`/`__next__`; `yield` creates generators.",
-        .functions:             "**Functions** defined with `def`; support `*args`, `**kwargs`, and annotations.",
+        .functions:             "**Functions** are defined with `def`; support `*args`, `**kwargs`, annotations & defaults.",
         .stringFormatting:      "**F-strings** (PEP 498) embed expressions: `f\"{value:.2f}\"`.",
-        .fileIO:                "**File I/O** with `open()`, plus `pathlib` for paths.",
-        .logging:               "**Logging** via `logging` module; configure levels, handlers, formatters.",
-        .testing:               "**Testing**: `unittest`; `pytest` offers fixtures and rich assertions.",
-        .patternMatching:       "**Pattern matching** (`match`/`case`) provides structural decomposition.",
-        .virtualEnv:            "**Virtual environments** (`python -m venv`, `pipenv`, `poetry`) isolate deps.",
-        .performance:           "**Performance**: profiling (`cProfile`), optimization with `lru_cache`, C extensions.",
-        .itertoolsFunctools:    "**Itertools & functools** supply performant iterator builders and helpers."
+        .fileIO:                "**File I/O** uses `open()`, plus `pathlib.Path` for OO paths.",
+        .logging:               "**Logging** via `logging` module; configure levels, handlers & formatters.",
+        .testing:               "**Testing**: `unittest`; `pytest` offers fixtures & expressive assertions.",
+        .patternMatching:       "**Structural pattern matching** (`match`/`case`) landed in 3.10.",
+        .virtualEnv:            "**Virtual environments** (`python -m venv`, `pipenv`, `poetry`) isolate dependencies.",
+        .performance:           "**Performance**: profiling with `cProfile`, optimisation with `lru_cache`, Cython, NumPy.",
+        .itertoolsFunctools:    "**Itertools & functools** supply high-performance iterator helpers & function utilities.",
+
+        // ————— New —————
+        .indentation:           "**Indentation** is syntactic—PEP 8 mandates 4 spaces; mixing tabs & spaces raises `TabError`.",
+        .dataTypes:             "**Core data types**: `int`, `float`, `complex`, `bool`, `str`, `bytes`, `list`, `tuple`, `set`, `dict`.",
+        .listsTuples:           "**Lists** are mutable ordered sequences; **tuples** are immutable and thus hashable if their elements are.",
+        .setsDicts:             "**Sets** store unique unordered items; **dicts** map keys → values and preserve insertion order (≥3.7).",
+        .slicing:               "**Slicing** `[start:stop:step]` returns subsequences; omit indices for defaults; negative indices count from the end.",
+        .variableScope:         "**Scope** follows LEGB (Local, Enclosing, Global, Built-in); `global` & `nonlocal` re-bind outer scopes.",
+        .builtins:              "**Built-ins** (`len`, `sum`, `enumerate`, `zip`, `map`, …) are always available without import.",
+        .sorting:               "**Sorting**: `sorted(iterable, key=…, reverse=…)` returns a new list; `list.sort()` sorts in-place.",
+        .regex:                 "**Regular expressions** via `re` with helpers like `search`, `match`, `findall`, and compiled patterns.",
+        .serialization:         "**JSON serialisation** uses `json.dumps/loads`; for arbitrary objects use `pickle` (unsafe) or 3rd-party `yaml`.",
+        .subprocessModule:      "**subprocess** executes external commands; high-level `run()` wraps `Popen` and returns `CompletedProcess`.",
+        .networking:            "**Networking**: low-level `socket`; `urllib.request` for HTTP; 3rd-party **Requests** for ergonomic HTTP.",
+        .oopInheritance:        "**Inheritance** allows subclasses to extend or override base behaviour; multiple inheritance is supported.",
+        .magicMethods:          "**Magic (dunder) methods** (`__str__`, `__len__`, `__iter__`, …) integrate objects with Python protocols.",
+        .properties:            "`@property` turns a method into an attribute; optional setters/getters give controlled access.",
+        .advancedTyping:        "**Advanced typing**: `Union`, `Literal`, `TypedDict`, `NewType`, generics with `TypeVar`, `ParamSpec`, `Self`.",
+        .metaclasses:           "**Metaclasses** customise class creation via `__new__`/`__init__`; declare with `class X(metaclass=Meta): …`",
+        .debugging:             "**Debugging**: `pdb`, `breakpoint()` (3.7+), IDE debuggers, `logging` & assertions.",
+        .styleGuide:            "**Style**: PEP 8, `black` auto-formatter, `flake8`/`pylint` linters, `isort` for imports.",
+        .databaseSqlite:        "**sqlite3** std-lib module offers zero-config relational DBs via `sqlite3.connect()` and cursors."
     ]
-    static func text(for t: Topic) -> String { map[t] ?? "" }
+
+    static func text(for topic: Topic) -> String { map[topic] ?? "" }
 }
 
+/// ---------------------------------------------------------------------
+/// MARK:  Question factory helpers
+/// ---------------------------------------------------------------------
 extension Topic {
+
+    /// Returns a *multiple-choice* question object for this topic.
     func generated() -> DiscreteMathQuestion {
         switch self {
+        // ————— Existing generators —————
         case .variableKeyword:       return QuestionGenerator.variableKeywordQuestion()
         case .constantKeyword:       return QuestionGenerator.constantKeywordQuestion()
         case .optionals:             return QuestionGenerator.optionalsQuestion()
@@ -107,48 +175,79 @@ extension Topic {
         case .virtualEnv:            return QuestionGenerator.virtualEnvQuestion()
         case .performance:           return QuestionGenerator.performanceQuestion()
         case .itertoolsFunctools:    return QuestionGenerator.itertoolsFunctoolsQuestion()
+
+        // ————— New generators —————
+        case .indentation:           return QuestionGenerator.indentationQuestion()
+        case .dataTypes:             return QuestionGenerator.dataTypesQuestion()
+        case .listsTuples:           return QuestionGenerator.listsTuplesQuestion()
+        case .setsDicts:             return QuestionGenerator.setsDictsQuestion()
+        case .slicing:               return QuestionGenerator.slicingQuestion()
+        case .variableScope:         return QuestionGenerator.variableScopeQuestion()
+        case .builtins:              return QuestionGenerator.builtinsQuestion()
+        case .sorting:               return QuestionGenerator.sortingQuestion()
+        case .regex:                 return QuestionGenerator.regexQuestion()
+        case .serialization:         return QuestionGenerator.serializationQuestion()
+        case .subprocessModule:      return QuestionGenerator.subprocessQuestion()
+        case .networking:            return QuestionGenerator.networkingQuestion()
+        case .oopInheritance:        return QuestionGenerator.oopInheritanceQuestion()
+        case .magicMethods:          return QuestionGenerator.magicMethodsQuestion()
+        case .properties:            return QuestionGenerator.propertiesQuestion()
+        case .advancedTyping:        return QuestionGenerator.advancedTypingQuestion()
+        case .metaclasses:           return QuestionGenerator.metaclassesQuestion()
+        case .debugging:             return QuestionGenerator.debuggingQuestion()
+        case .styleGuide:            return QuestionGenerator.styleGuideQuestion()
+        case .databaseSqlite:        return QuestionGenerator.databaseSqliteQuestion()
         }
     }
 
+    /// Helper that converts a multiple-choice question into a simple prompt–answer pair.
     func randomQuestion() -> Question {
         let q = generated()
         return Question(prompt: q.question, answer: q.answers[q.correctAnswerIndex])
     }
 
+    /// Randomly returns either a multiple-choice or short-answer wrapper.
     func mixedQuestion() -> QuizQuestion {
         Bool.random() ? .multiple(generated()) : .submit(randomQuestion())
     }
 
     var explanation: String { TopicExplanations.text(for: self) }
-    var short: String { String(title.prefix(12)) }
+    var short: String       { String(title.prefix(12)) }
 
-    func answer(for _: String) -> String { "\(explanation)\n\n(For full details, ask about a concrete example.)" }
+    func answer(for _: String) -> String {
+        "\(explanation)\n\n(For full details, ask about a concrete example.)"
+    }
 }
 
 
 import Foundation
 
+/// Factory for every multiple-choice quiz item.
+/// Each helper returns a **DiscreteMathQuestion** ready for the UI.
 enum QuestionGenerator {
 
-    static let maxCount: Int = 50
+    static let maxCount: Int = 100   // upper-bound safeguarding
 
+    // MARK: -- Internal convenience
     private static func make(
-        _ q: String,
-        _ opts: [String],
+        _ prompt: String,
+        _ options: [String],
         _ correct: Int,
-        _ expl: String,
-        _ top: Topic
+        _ explanation: String,
+        _ topic: Topic
     ) -> DiscreteMathQuestion {
         DiscreteMathQuestion(
-            question: q,
-            answers: opts,
+            question: prompt,
+            answers: options,
             correctAnswerIndex: correct,
-            explanation: expl,
-            topic: top
+            explanation: explanation,
+            topic: topic
         )
     }
 
-    // Fundamentals
+    // ──────────────────────────────────────────────────────────
+    // Existing question builders (unchanged)
+    // ──────────────────────────────────────────────────────────
     static func variableKeywordQuestion() -> DiscreteMathQuestion {
         make(
             "Which operator assigns a value to a variable in Python?",
@@ -174,7 +273,7 @@ enum QuestionGenerator {
             "What object represents the absence of a value in Python?",
             ["None", "nil", "null", "undefined"],
             0,
-            "`None` is Python's null singleton.",
+            "`None` is Python’s null singleton.",
             .optionals
         )
     }
@@ -191,7 +290,7 @@ enum QuestionGenerator {
 
     static func structsVsClassesQuestion() -> DiscreteMathQuestion {
         make(
-            "Which decorator simplifies creation of data carrier classes?",
+            "Which decorator simplifies creation of data-carrier classes?",
             ["@dataclass", "@staticmethod", "@property", "@abstractmethod"],
             0,
             "`@dataclass` auto-generates boilerplate like `__init__`.",
@@ -229,7 +328,6 @@ enum QuestionGenerator {
         )
     }
 
-    // Additional topics
     static func controlFlowQuestion() -> DiscreteMathQuestion {
         make(
             "Which keyword starts a `while` loop?",
@@ -310,7 +408,6 @@ enum QuestionGenerator {
         )
     }
 
-    // New comprehensive topics
     static func functionsQuestion() -> DiscreteMathQuestion {
         make(
             "Which symbol packs arbitrary positional args in a function signature?",
@@ -326,7 +423,7 @@ enum QuestionGenerator {
             "Which formatting style allows in-line expressions since Python 3.6?",
             ["f-strings", "% formatting", "`str.format`", "Template strings"],
             0,
-            "Prefixing with `f` enables f-strings.",
+            "Prefix with `f` to create an f-string.",
             .stringFormatting
         )
     }
@@ -336,7 +433,7 @@ enum QuestionGenerator {
             "Which mode opens a file for reading binary data?",
             ["'rb'", "'r'", "'wb'", "'ab'"],
             0,
-            "`'rb'` stands for read-binary.",
+            "`'rb'` stands for *read-binary*.",
             .fileIO
         )
     }
@@ -356,7 +453,7 @@ enum QuestionGenerator {
             "Which assertion style is preferred by pytest?",
             ["Plain `assert` statement", "`self.assertEqual`", "`expect`", "`assertThat`"],
             0,
-            "Pytest rewrites Python's `assert` for rich failure output.",
+            "Pytest rewrites Python’s `assert` for rich output.",
             .testing
         )
     }
@@ -366,7 +463,7 @@ enum QuestionGenerator {
             "Which keyword introduces structural pattern matching?",
             ["match", "switch", "case", "pattern"],
             0,
-            "`match` top-level followed by `case` clauses.",
+            "`match` at top level followed by `case` clauses.",
             .patternMatching
         )
     }
@@ -383,7 +480,7 @@ enum QuestionGenerator {
 
     static func performanceQuestion() -> DiscreteMathQuestion {
         make(
-            "Which decorator memoizes function results in std-lib?",
+            "Which decorator memoises function results in std-lib?",
             ["functools.lru_cache", "functools.cache", "functools.memoize", "lru"],
             0,
             "`functools.lru_cache` caches call results.",
@@ -393,11 +490,214 @@ enum QuestionGenerator {
 
     static func itertoolsFunctoolsQuestion() -> DiscreteMathQuestion {
         make(
-            "Which `itertools` function returns cartesian product?",
+            "Which `itertools` function returns a Cartesian product?",
             ["product", "chain", "zip_longest", "combinations"],
             0,
-            "`itertools.product` computes cartesian products.",
+            "`itertools.product` computes Cartesian products.",
             .itertoolsFunctools
+        )
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // NEW  – 20 additional question builders
+    // ──────────────────────────────────────────────────────────
+    static func indentationQuestion() -> DiscreteMathQuestion {
+        make(
+            "According to PEP 8, how many spaces should one indentation level be?",
+            ["4", "2", "Tab character", "8"],
+            0,
+            "PEP 8 mandates 4 spaces per level; avoid tabs.",
+            .indentation
+        )
+    }
+
+    static func dataTypesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which of these is an *immutable* built-in sequence type?",
+            ["tuple", "list", "dict", "set"],
+            0,
+            "`tuple` cannot be modified after creation.",
+            .dataTypes
+        )
+    }
+
+    static func listsTuplesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which list method appends a single element to the end?",
+            ["append()", "add()", "push()", "extend()"],
+            0,
+            "`list.append(x)` adds *one* element.",
+            .listsTuples
+        )
+    }
+
+    static func setsDictsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which operator tests membership in a dictionary’s *keys*?",
+            ["in", "has", "contains", "exists"],
+            0,
+            "`key in my_dict` checks key membership.",
+            .setsDicts
+        )
+    }
+
+    static func slicingQuestion() -> DiscreteMathQuestion {
+        make(
+            "What is the result of \"abcde\"[1:4] ?",
+            ["\"bcd\"", "\"abc\"", "\"bcde\"", "\"abcd\""],
+            0,
+            "Slice is inclusive of start index 1 and exclusive of stop index 4.",
+            .slicing
+        )
+    }
+
+    static func variableScopeQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which keyword re-binds an *enclosing-scope* variable inside a nested function?",
+            ["nonlocal", "global", "outer", "static"],
+            0,
+            "`nonlocal` targets the nearest enclosing (non-global) scope.",
+            .variableScope
+        )
+    }
+
+    static func builtinsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which built-in converts an iterable into a *set*?",
+            ["set()", "list()", "tuple()", "dict()"],
+            0,
+            "`set(iterable)` removes duplicates and returns a set.",
+            .builtins
+        )
+    }
+
+    static func sortingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which parameter of `sorted()` lets you supply a custom key function?",
+            ["key", "cmp", "order", "by"],
+            0,
+            "`sorted(seq, key=str.lower)` for case-insensitive sort.",
+            .sorting
+        )
+    }
+
+    static func regexQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which std-lib module provides regular expressions?",
+            ["re", "regex", "pattern", "regexp"],
+            0,
+            "`import re` gives access to regex functionality.",
+            .regex
+        )
+    }
+
+    static func serializationQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which function serialises a Python object to a JSON *string*?",
+            ["json.dumps()", "json.dump()", "json.loads()", "json.load()"],
+            0,
+            "`json.dumps(obj)` → str; `dump()` writes to a file.",
+            .serialization
+        )
+    }
+
+    static func subprocessQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which `subprocess` helper executes a command and returns a `CompletedProcess`?",
+            ["subprocess.run()", "subprocess.call()", "subprocess.Popen()", "subprocess.check_output()"],
+            0,
+            "`run()` is a high-level wrapper introduced in Python 3.5.",
+            .subprocessModule
+        )
+    }
+
+    static func networkingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which THIRD-PARTY library is famous for simplifying HTTP requests?",
+            ["Requests", "urllib", "http.client", "aiohttp"],
+            0,
+            "`Requests` (pip install requests) offers a friendly API.",
+            .networking
+        )
+    }
+
+    static func oopInheritanceQuestion() -> DiscreteMathQuestion {
+        make(
+            "Choose the correct syntax for declaring a class *Child* that inherits from *Base*.",
+            ["class Child(Base): pass", "class Child < Base: pass", "class Child inherits Base: pass", "class Child: Base"],
+            0,
+            "Put the base class in parentheses after the class name.",
+            .oopInheritance
+        )
+    }
+
+    static func magicMethodsQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which magic method makes an object *iterable*?",
+            ["__iter__", "__len__", "__call__", "__next__"],
+            0,
+            "`__iter__` must return an iterator.",
+            .magicMethods
+        )
+    }
+
+    static func propertiesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which decorator turns a method into a read-only attribute?",
+            ["@property", "@cached_property", "@attribute", "@getter"],
+            0,
+            "`@property` decorates a zero-argument method.",
+            .properties
+        )
+    }
+
+    static func advancedTypingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which typing construct restricts a value to a fixed set of literals?",
+            ["typing.Literal", "typing.Union", "typing.Any", "typing.Optional"],
+            0,
+            "`Literal[\"red\", \"green\"]` enforces specific allowed strings.",
+            .advancedTyping
+        )
+    }
+
+    static func metaclassesQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which dunder attribute sets a custom metaclass (Py 2 legacy style)?",
+            ["__metaclass__", "__class__", "__buildclass__", "__meta__"],
+            0,
+            "In modern code use `class X(metaclass=Meta): …` at class header.",
+            .metaclasses
+        )
+    }
+
+    static func debuggingQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which built-in module provides an interactive debugger?",
+            ["pdb", "debug", "inspect", "logging"],
+            0,
+            "`import pdb; pdb.set_trace()` drops into the debugger.",
+            .debugging
+        )
+    }
+
+    static func styleGuideQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which tool auto-formats Python code according to PEP 8?",
+            ["black", "flake8", "pylint", "autopep8"],
+            0,
+            "`black` makes code *uniformly* formatted (“any colour you like”).",
+            .styleGuide
+        )
+    }
+
+    static func databaseSqliteQuestion() -> DiscreteMathQuestion {
+        make(
+            "Which std-lib module offers built-in SQLite database support?",
+            ["sqlite3", "mysqldb", "pysqlite", "sqlalchemy"],
+            0,
+            "`sqlite3` has been in the std-lib since Python 2.5.",
+            .databaseSqlite
         )
     }
 }

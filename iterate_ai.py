@@ -11,7 +11,7 @@ from email.message import EmailMessage
 from openai import OpenAI
 
 INSTRUCTIONS = (
-    "add as many topics and high quality questions for learning python as possible; do as great a job as you can: "
+  "without changing or adding any structs, turn these 2 swift files into the most comprehensive and greatest physics learning files possible: "
 )
 DEFAULT_MODEL = "o3-pro"
 MAX_RETRIES = 5
@@ -80,7 +80,13 @@ def gather_input(paths):
 
 
 def parse_multi_file_output(text, input_paths):
-    marker = re.compile(r"(?m)^\s*(?:#|//|;|'|\-{3,})\s*file\s*:\s*(.+)$", re.I)
+    # unified pattern: comments (#, //, ;, ') *or* dash-ruled headings (---, –––)
+    marker = re.compile(
+        r"(?m)^\s*(?:#|//|;|'|[-–—]{3,})\s*"      # line prefix
+        r"(?:file\s*:)?\s*(?:\d+\.\s*)?"          # optional 'file:' / numbering
+        r"([A-Za-z0-9_.]+\.\w+)",                 # captured filename
+        re.UNICODE | re.I,
+    )
     matches = list(marker.finditer(text))
     if not matches:
         return None
@@ -151,8 +157,10 @@ def main():
 
     instructions = INSTRUCTIONS
     if len(args.filepaths) == 1 and programming_mode:
-        instructions += ("\n\nIMPORTANT: Only return the complete, revised source "
-                         "code file. Do not include any extra text or explanations.")
+        instructions += (
+            "\n\nIMPORTANT: Only return the complete, revised source code file. "
+            "Do not include any extra text or explanations."
+        )
 
     current_text = gather_input(args.filepaths)
     history_text = current_text
@@ -171,8 +179,9 @@ def main():
         email_pwd = os.environ.get("GMAIL_APP_PASSWORD")
         if email_user and email_pwd:
             try:
-                email_server = smtplib.SMTP_SSL("smtp.gmail.com", 465,
-                                                context=ssl.create_default_context())
+                email_server = smtplib.SMTP_SSL(
+                    "smtp.gmail.com", 465, context=ssl.create_default_context()
+                )
                 email_server.login(email_user, email_pwd)
                 print("[DEBUG] logged into Gmail SMTP")
             except Exception as e:
@@ -184,8 +193,9 @@ def main():
             print(f"[DEBUG] iteration limit {args.limit} reached, stopping")
             break
         try:
-            new_text = request_with_retry(client, args.model, instructions,
-                                          history_text, iteration)
+            new_text = request_with_retry(
+                client, args.model, instructions, history_text, iteration
+            )
         except Exception as e:
             print(f"[FATAL] iter {iteration}: {e}")
             break
@@ -208,8 +218,9 @@ def main():
                 msg["From"] = email_user
                 msg["To"] = args.email
                 msg["Subject"] = f"Iteration {iteration} completed (ratio {ratio:.6f})"
-                msg.set_content(f"Response saved to {dbg_path}\n\nFirst 500 chars:\n"
-                                f"{new_text[:500]}")
+                msg.set_content(
+                    f"Response saved to {dbg_path}\n\nFirst 500 chars:\n{new_text[:500]}"
+                )
                 email_server.send_message(msg)
                 print("[DEBUG] email sent")
             except Exception as e:

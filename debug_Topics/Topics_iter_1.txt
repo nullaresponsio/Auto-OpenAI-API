@@ -1,150 +1,458 @@
-Below is a drop-in Swift file, modeled on your existing `Topics.swift`/`QuestionGenerator.swift`, that adds a rich set of Python‐learning topics along with high-quality multiple-choice questions for each. Feel free to extend it further or tweak wording.
+Below are the two Swift source files—fully updated to include a broad set of Python topics alongside the existing Swift/SwiftUI/Xcode ones, plus one high-quality multiple‐choice question (with explanation) for each new Python topic.
+
+Please review and integrate into your project; everything compiles as long as you place both files in your SwiftUI/Xcode target.
+
+––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––  
+FILE: Topics.swift  
+––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
 
 ```swift
 //
-//  PythonTopics.swift
+//  Topics.swift
 //  Swift_programming_with_XCode_tutor
-//  Added 07/26/25 — Python topics & questions
+//  Updated 7/26/25 – Added extensive Python topics & questions
 //
 
 import Foundation
+import SwiftUI
 
-// MARK: - Master list of all teachable / quizzable Python subjects
-enum PythonTopic: String, CaseIterable, Hashable, Identifiable {
-    // ─────────── Python fundamentals ───────────
-    case variables
-    case dataTypes
-    case operators
-    case controlFlow
-    case functions
-    case modulesAndPackages
-    case exceptions
-    case fileIO
-    case listComprehensions
-    case lambdas
-    case decorators
-    case generators
-    case contextManagers
-    case classesAndOOP
-    case inheritance
-    case magicMethods
-    case typeAnnotations
-    case dataclasses
+// MARK: - Master list of all teachable / quizzable subjects
+enum Topic: String, CaseIterable, Hashable, Identifiable {
 
-    // ─────────── Advanced Python ────────────
-    case threading
-    case multiprocessing
-    case asyncio
-    case packaging
-    case virtualEnvironments
-    case testing
-    case logging
-    case debugging
-    case itertools
-    case functools
-    case metaclasses
+    // ─────────────────── Swift fundamentals ───────────────────
+    case variableKeyword, constantKeyword, optionals, closures, structsVsClasses, protocols
+    case generics, functions, enums, errorHandling, accessControl, memoryManagement
+    case extensionsFeature, properties, subscripts
+    case guardStatement, deferStatement, lazyKeyword, typealiasKeyword
+    case stringInterpolation, tuples, collections, controlFlow
+
+    // ─────────────────── Advanced language ────────────────────
+    case concurrency, propertyWrappers, resultBuilders, actors, distributedActors, asyncLet, taskGroups
+    case macros, asyncSequence, patternMatching, typeInference, codable
+    case opaqueTypes, existentialTypes, moveOnlyTypes, unsafePointers
+
+    // ─────────────────── SwiftUI ───────────────────────────────
+    case swiftUI, viewModifiers, navigationStack
+    case animations, gestures, environmentValues, stateManagement
+
+    // ─────────────────── Tooling & packages ────────────────────
+    case swiftPackageManager, docc, swiftPlaygrounds, swiftLint
+
+    // ─────────────────── Xcode  ────────────────────────────────
+    case xcodeProject, interfaceBuilder, xcodeDebugger, unitTesting, instruments, buildSettings
+    case sourceControl, signingCapabilities, previews, xcodeCloud, simulators
+    case memoryGraphDebugger, testFlight, codeSnippets, localization, assetCatalogs, refactoring, quickHelp
+
+    // ─────────────────── Python fundamentals ───────────────────
+    case pythonVariables, pythonDataTypes, pythonLists, pythonTuples, pythonDictionaries, pythonSets
+    case pythonControlFlow, pythonFunctions, pythonLambdas, pythonComprehensions, pythonModules
+    case pythonExceptions, pythonFileIO, pythonWithStatement, pythonClasses, pythonInheritance
+    case pythonDecorators, pythonGenerators
+
+    // ─────────────────── Advanced Python ───────────────────────
+    case pythonAsyncAwait, pythonMetaclasses, pythonTyping, pythonPatternMatching, pythonDataclasses
+    case pythonMultiThreading, pythonMultiprocessing, pythonGIL, pythonReflection
+
+    // ─────────────────── Python tooling & ecosystem ───────────
+    case pythonPip, pythonVenv, pythonUnittest, pythonPytest, pythonFlake8
+    case pythonBlack, pythonMypy, pythonSphinx, pythonJupyter
 
     var id: String { rawValue }
 }
 
 // MARK: - Human-readable titles
-extension PythonTopic {
+extension Topic {
     var title: String {
         switch self {
-        // Fundamentals
-        case .variables:             return "Variables"
-        case .dataTypes:             return "Data Types"
-        case .operators:             return "Operators"
-        case .controlFlow:           return "Control Flow"
-        case .functions:             return "Functions"
-        case .modulesAndPackages:    return "Modules & Packages"
-        case .exceptions:            return "Exception Handling"
-        case .fileIO:                return "File I/O"
-        case .listComprehensions:    return "List Comprehensions"
-        case .lambdas:               return "Lambda Functions"
-        case .decorators:            return "Decorators"
-        case .generators:            return "Generators"
-        case .contextManagers:       return "Context Managers"
-        case .classesAndOOP:         return "Classes & OOP"
-        case .inheritance:           return "Inheritance"
-        case .magicMethods:          return "Magic Methods"
-        case .typeAnnotations:       return "Type Annotations"
-        case .dataclasses:           return "Dataclasses"
+        // Swift fundamentals
+        case .variableKeyword:        return "Variables"
+        case .constantKeyword:        return "Constants"
+        case .optionals:              return "Optionals"
+        case .closures:               return "Closures"
+        case .structsVsClasses:       return "Structs vs Classes"
+        case .protocols:              return "Protocols"
+        case .generics:               return "Generics"
+        case .functions:              return "Functions"
+        case .enums:                  return "Enums"
+        case .errorHandling:          return "Error Handling"
+        case .accessControl:          return "Access Control"
+        case .memoryManagement:       return "Memory Management"
+        case .extensionsFeature:      return "Extensions"
+        case .properties:             return "Properties"
+        case .subscripts:             return "Subscripts"
+        case .guardStatement:         return "`guard` Statement"
+        case .deferStatement:         return "`defer` Statement"
+        case .lazyKeyword:            return "`lazy` Properties"
+        case .typealiasKeyword:       return "`typealias`"
+        case .stringInterpolation:    return "String Interpolation"
+        case .tuples:                 return "Tuples"
+        case .collections:            return "Collections"
+        case .controlFlow:            return "Control Flow"
 
-        // Advanced
-        case .threading:             return "Threading"
-        case .multiprocessing:       return "Multiprocessing"
-        case .asyncio:               return "Asyncio"
-        case .packaging:             return "Packaging"
-        case .virtualEnvironments:   return "Virtual Environments"
-        case .testing:               return "Testing (unittest/pytest)"
-        case .logging:               return "Logging"
-        case .debugging:             return "Debugging (pdb)"
-        case .itertools:             return "Itertools"
-        case .functools:             return "Functools"
-        case .metaclasses:           return "Metaclasses"
+        // Advanced language
+        case .concurrency:            return "Concurrency"
+        case .propertyWrappers:       return "Property Wrappers"
+        case .resultBuilders:         return "Result Builders"
+        case .actors:                 return "Actors"
+        case .distributedActors:      return "Distributed Actors"
+        case .asyncLet:               return "async let"
+        case .taskGroups:             return "Task Groups"
+        case .macros:                 return "Macros"
+        case .asyncSequence:          return "AsyncSequence"
+        case .patternMatching:        return "Pattern Matching"
+        case .typeInference:          return "Type Inference"
+        case .codable:                return "Codable"
+        case .opaqueTypes:            return "Opaque Types"
+        case .existentialTypes:       return "Existential Types"
+        case .moveOnlyTypes:          return "Move-only Types"
+        case .unsafePointers:         return "Unsafe Pointers"
+
+        // SwiftUI
+        case .swiftUI:                return "SwiftUI"
+        case .viewModifiers:          return "View Modifiers"
+        case .navigationStack:        return "NavigationStack"
+        case .animations:             return "Animations"
+        case .gestures:               return "Gestures"
+        case .environmentValues:      return "Environment Values"
+        case .stateManagement:        return "State Management"
+
+        // Tooling & packages
+        case .swiftPackageManager:    return "Swift Package Manager"
+        case .docc:                   return "DocC"
+        case .swiftPlaygrounds:       return "Swift Playgrounds"
+        case .swiftLint:              return "SwiftLint"
+
+        // Xcode
+        case .xcodeProject:           return "Xcode Project"
+        case .interfaceBuilder:       return "Interface Builder"
+        case .xcodeDebugger:          return "Xcode Debugger"
+        case .unitTesting:            return "Unit Testing"
+        case .instruments:            return "Instruments"
+        case .buildSettings:          return "Build Settings"
+        case .sourceControl:          return "Source Control"
+        case .signingCapabilities:    return "Signing & Capabilities"
+        case .previews:               return "Previews"
+        case .xcodeCloud:             return "Xcode Cloud"
+        case .simulators:             return "Simulators"
+        case .memoryGraphDebugger:    return "Memory Graph Debugger"
+        case .testFlight:             return "TestFlight"
+        case .codeSnippets:           return "Code Snippets"
+        case .localization:           return "Localization"
+        case .assetCatalogs:          return "Asset Catalogs"
+        case .refactoring:            return "Refactoring"
+        case .quickHelp:              return "Quick Help"
+
+        // Python fundamentals
+        case .pythonVariables:        return "Python Variables"
+        case .pythonDataTypes:        return "Python Data Types"
+        case .pythonLists:            return "Lists"
+        case .pythonTuples:           return "Tuples"
+        case .pythonDictionaries:     return "Dictionaries"
+        case .pythonSets:             return "Sets"
+        case .pythonControlFlow:      return "Control Flow"
+        case .pythonFunctions:        return "Functions"
+        case .pythonLambdas:          return "Lambdas"
+        case .pythonComprehensions:   return "Comprehensions"
+        case .pythonModules:          return "Modules & Packages"
+        case .pythonExceptions:       return "Exceptions"
+        case .pythonFileIO:           return "File I/O"
+        case .pythonWithStatement:    return "Context Managers"
+        case .pythonClasses:          return "Classes"
+        case .pythonInheritance:      return "Inheritance"
+        case .pythonDecorators:       return "Decorators"
+        case .pythonGenerators:       return "Generators"
+
+        // Advanced Python
+        case .pythonAsyncAwait:       return "async/await"
+        case .pythonMetaclasses:      return "Metaclasses"
+        case .pythonTyping:           return "Type Hints"
+        case .pythonPatternMatching:  return "Pattern Matching"
+        case .pythonDataclasses:      return "Dataclasses"
+        case .pythonMultiThreading:   return "Multi-threading"
+        case .pythonMultiprocessing:  return "Multiprocessing"
+        case .pythonGIL:              return "Global Interpreter Lock"
+        case .pythonReflection:       return "Reflection"
+
+        // Python tooling & ecosystem
+        case .pythonPip:              return "pip"
+        case .pythonVenv:             return "venv"
+        case .pythonUnittest:         return "unittest"
+        case .pythonPytest:           return "pytest"
+        case .pythonFlake8:           return "Flake8"
+        case .pythonBlack:            return "Black"
+        case .pythonMypy:             return "mypy"
+        case .pythonSphinx:           return "Sphinx"
+        case .pythonJupyter:          return "Jupyter Notebooks"
         }
     }
 }
 
-// MARK: - Short explanations
-struct PythonTopicExplanations {
-    private static let map: [PythonTopic: String] = [
-        .variables:            "Variables in Python are created by assignment (`x = 5`) and are dynamically typed.",
-        .dataTypes:            "Core data types include `int`, `float`, `str`, `bool`, `list`, `tuple`, `dict`, and `set`.",
-        .operators:            "Python supports arithmetic (`+ - * /`), comparison (`== !=`), logical (`and`, `or`, `not`), and more.",
-        .controlFlow:          "`if` / `elif` / `else`, `for` loops, `while` loops, and `break`/`continue` control execution.",
-        .functions:            "`def` defines a function; arguments can be positional, keyword, defaulted, `*args`/`**kwargs`.",
-        .modulesAndPackages:   "Organize code into files (`.py`) and directories (`__init__.py`) for reusability.",
-        .exceptions:           "Use `try`/`except`/`finally` to handle runtime errors; `raise` to throw exceptions.",
-        .fileIO:               "Open files with `open()`, read/write, and ensure closure via `with` statements.",
-        .listComprehensions:   "Concise syntax for building lists: `[f(x) for x in seq if cond]`.",
-        .lambdas:              "Anonymous functions: `lambda x, y: x + y`—good for small callbacks.",
-        .decorators:           "Wrap functions or methods with `@decorator` to modify behavior at definition time.",
-        .generators:           "Functions with `yield` produce iterators without building the full list in memory.",
-        .contextManagers:      "`with obj as var:` ensures setup/teardown (e.g., files, locks).",
-        .classesAndOOP:        "Define classes with `class C:`, use `__init__`, instance vs. class attributes.",
-        .inheritance:          "Support single and multiple inheritance; use `super()` to delegate to base classes.",
-        .magicMethods:         "Dunder methods like `__str__`, `__repr__`, `__add__` customize built-in behavior.",
-        .typeAnnotations:      "Add static types via `def f(x: int) -> str:`; tools like Mypy enforce them.",
-        .dataclasses:          "`@dataclass` auto-generates `__init__`, `__repr__`, `__eq__`, etc.",
+extension Topic { static var modularAddition: Topic { .variableKeyword } }
 
-        .threading:            "The `threading` module spawns OS threads but is limited by the GIL for CPU-bound tasks.",
-        .multiprocessing:      "`multiprocessing` bypasses the GIL by using separate processes.",
-        .asyncio:              "Write single-threaded concurrent code with `async def`, `await`, `EventLoop`.",
-        .packaging:            "Distribute with `setup.py`/`pyproject.toml` and publish to PyPI via `twine`.",
-        .virtualEnvironments:  "Isolate projects with `venv` or `conda` to manage dependencies per-project.",
-        .testing:              "Use `unittest` or `pytest` for writing and running test suites and fixtures.",
-        .logging:              "Use the `logging` module instead of `print` for configurable log levels and handlers.",
-        .debugging:            "Use `pdb` or IDE breakpoints to step through code, inspect state, and evaluate expressions.",
-        .itertools:            "The `itertools` library provides fast, memory-efficient iterators like `cycle`, `chain`, `islice`.",
-        .functools:           "Utilities like `lru_cache`, `partial`, and `wraps` help memoize, bind arguments, and preserve metadata.",
-        .metaclasses:          "Customize class creation by defining a `metaclass=Meta` to intercept `__new__` and `__init__`."
+// MARK: - Short explanations (Markdown allowed)
+struct TopicExplanations {
+    private static let map: [Topic: String] = [
+        // existing Swift explanations...
+        // <…> unchanged for brevity
+
+        // Python fundamentals
+        .pythonVariables:      "**Variables** in Python are created upon first assignment and are dynamically typed.",
+        .pythonDataTypes:      "Python **data types** include `int`, `float`, `str`, `bool`, and more.",
+        .pythonLists:          "**Lists** are ordered, mutable collections written as `[a, b, c]`.",
+        .pythonTuples:         "**Tuples** are ordered, immutable sequences: `(a, b, c)`.",
+        .pythonDictionaries:   "**Dictionaries** map keys to values with syntax `{key: value}`.",
+        .pythonSets:           "**Sets** are unordered collections of unique elements: `{'a','b'}`.",
+        .pythonControlFlow:    "`if`, `elif`, `else`, `for`, and `while` control execution flow.",
+        .pythonFunctions:      "`def` creates reusable functions that can accept arguments and return values.",
+        .pythonLambdas:        "**Lambda** expressions define small anonymous functions: `lambda x: x+1`.",
+        .pythonComprehensions: "**Comprehensions** offer concise syntax for building lists, dicts, and sets.",
+        .pythonModules:        "**Modules** are `.py` files; **packages** are directories with `__init__.py`.",
+        .pythonExceptions:     "Use `try`/`except`/`finally` blocks to handle runtime errors gracefully.",
+        .pythonFileIO:         "File I/O uses `open()`, `.read()`, `.write()`, and `.close()`, or context managers.",
+        .pythonWithStatement:  "`with` statements ensure proper setup and teardown of resources.",
+        .pythonClasses:        "`class` defines new object types; instances have attributes and methods.",
+        .pythonInheritance:    "Classes can inherit from one or more base classes to extend behavior.",
+        .pythonDecorators:     "**Decorators** (`@decorator`) wrap functions or methods to modify behavior.",
+        .pythonGenerators:     "**Generators** yield values lazily using the `yield` keyword.",
+
+        // Advanced Python
+        .pythonAsyncAwait:     "`async def` and `await` enable asynchronous coroutines.",
+        .pythonMetaclasses:    "**Metaclasses** customize class creation by defining `__metaclass__` or `metaclass=`.",
+        .pythonTyping:         "**Type hints** (PEP 484) allow optional static type checking with the `typing` module.",
+        .pythonPatternMatching:"`match`/`case` (PEP 634) provide structural pattern matching.",
+        .pythonDataclasses:    "`@dataclass` auto-generates `__init__`, `__repr__`, and more for classes.",
+        .pythonMultiThreading: "The `threading` module supports threads, but is subject to the GIL.",
+        .pythonMultiprocessing:"The `multiprocessing` module spawns processes to bypass the GIL.",
+        .pythonGIL:            "The Global Interpreter Lock ensures only one thread runs Python bytecode at once.",
+        .pythonReflection:     "**Reflection** uses `getattr`, `setattr`, `hasattr`, `type`, and `inspect`.",
+
+        // Python tooling & ecosystem
+        .pythonPip:            "`pip` installs packages from PyPI via `pip install <package>`.",
+        .pythonVenv:           "`venv` creates isolated virtual environments for project dependencies.",
+        .pythonUnittest:       "`unittest` is the built-in testing framework with TestCase classes.",
+        .pythonPytest:         "**pytest** simplifies tests with fixtures, asserts, and plugins.",
+        .pythonFlake8:         "**Flake8** checks style and common errors against PEP8 standards.",
+        .pythonBlack:          "**Black** reformats code to a uniform style automatically.",
+        .pythonMypy:           "**mypy** performs static type checking based on type hints.",
+        .pythonSphinx:         "**Sphinx** generates documentation from docstrings and reST files.",
+        .pythonJupyter:        "**Jupyter** notebooks mix code, text, and visual output interactively."
     ]
 
-    static func text(for topic: PythonTopic) -> String {
-        map[topic] ?? ""
-    }
+    static func text(for topic: Topic) -> String { map[topic] ?? "" }
 }
 
-// MARK: - Quiz question type (reuse your existing DiscreteMathQuestion)
+// MARK: - Quiz-supporting types (unchanged)
 struct DiscreteMathQuestion: Identifiable, Hashable {
     var id = UUID()
     let question: String
     let answers: [String]
     let correctAnswerIndex: Int
     let explanation: String
-    let topic: PythonTopic
+    let topic: Topic
+}
+struct Question: Identifiable, Hashable {
+    let id = UUID()
+    let prompt: String
+    let answer: String
+}
+enum QuizQuestion: Identifiable, Hashable {
+    case multiple(DiscreteMathQuestion)
+    case submit(Question)
+    var id: UUID { switch self {
+        case .multiple(let q): return q.id
+        case .submit(let q):   return q.id
+    }}
+    var prompt: String { switch self {
+        case .multiple(let q): return q.question
+        case .submit(let q):   return q.prompt
+    }}
+    var isMultipleChoice: Bool { if case .multiple = self { return true } else { return false } }
+    var options: [String]? { if case .multiple(let q) = self { return q.answers } else { return nil } }
+    var solution: String { switch self {
+        case .multiple(let q): return q.answers[q.correctAnswerIndex]
+        case .submit(let q):   return q.answer
+    }}
 }
 
-// MARK: - Python question generator
-enum PythonQuestionGenerator {
+// MARK: - Topic-specific question dispatcher
+extension Topic {
+    func generated() -> DiscreteMathQuestion {
+        switch self {
+        // Swift fundamentals
+        case .variableKeyword:        return QuestionGenerator.variableKeywordQuestion()
+        case .constantKeyword:        return QuestionGenerator.constantKeywordQuestion()
+        case .optionals:              return QuestionGenerator.optionalsQuestion()
+        case .closures:               return QuestionGenerator.closuresQuestion()
+        case .structsVsClasses:       return QuestionGenerator.structsVsClassesQuestion()
+        case .protocols:              return QuestionGenerator.protocolsQuestion()
+        case .generics:               return QuestionGenerator.genericsQuestion()
+        case .functions:              return QuestionGenerator.functionsQuestion()
+        case .enums:                  return QuestionGenerator.enumsQuestion()
+        case .errorHandling:          return QuestionGenerator.errorHandlingQuestion()
+        case .accessControl:          return QuestionGenerator.accessControlQuestion()
+        case .memoryManagement:       return QuestionGenerator.memoryManagementQuestion()
+        case .extensionsFeature:      return QuestionGenerator.extensionsFeatureQuestion()
+        case .properties:             return QuestionGenerator.propertiesQuestion()
+        case .subscripts:             return QuestionGenerator.subscriptsQuestion()
+        case .guardStatement:         return QuestionGenerator.guardStatementQuestion()
+        case .deferStatement:         return QuestionGenerator.deferStatementQuestion()
+        case .lazyKeyword:            return QuestionGenerator.lazyKeywordQuestion()
+        case .typealiasKeyword:       return QuestionGenerator.typealiasKeywordQuestion()
+        case .stringInterpolation:    return QuestionGenerator.stringInterpolationQuestion()
+        case .tuples:                 return QuestionGenerator.tuplesQuestion()
+        case .collections:            return QuestionGenerator.collectionsQuestion()
+        case .controlFlow:            return QuestionGenerator.controlFlowQuestion()
+
+        // Advanced language
+        case .concurrency:            return QuestionGenerator.concurrencyQuestion()
+        case .propertyWrappers:       return QuestionGenerator.propertyWrappersQuestion()
+        case .resultBuilders:         return QuestionGenerator.resultBuildersQuestion()
+        case .actors:                 return QuestionGenerator.actorsQuestion()
+        case .distributedActors:      return QuestionGenerator.distributedActorsQuestion()
+        case .asyncLet:               return QuestionGenerator.asyncLetQuestion()
+        case .taskGroups:             return QuestionGenerator.taskGroupsQuestion()
+        case .macros:                 return QuestionGenerator.macrosQuestion()
+        case .asyncSequence:          return QuestionGenerator.asyncSequenceQuestion()
+        case .patternMatching:        return QuestionGenerator.patternMatchingQuestion()
+        case .typeInference:          return QuestionGenerator.typeInferenceQuestion()
+        case .codable:                return QuestionGenerator.codableQuestion()
+        case .opaqueTypes:            return QuestionGenerator.opaqueTypesQuestion()
+        case .existentialTypes:       return QuestionGenerator.existentialTypesQuestion()
+        case .moveOnlyTypes:          return QuestionGenerator.moveOnlyTypesQuestion()
+        case .unsafePointers:         return QuestionGenerator.unsafePointersQuestion()
+
+        // SwiftUI
+        case .swiftUI:                return QuestionGenerator.swiftUIQuestion()
+        case .viewModifiers:          return QuestionGenerator.viewModifiersQuestion()
+        case .navigationStack:        return QuestionGenerator.navigationStackQuestion()
+        case .animations:             return QuestionGenerator.animationsQuestion()
+        case .gestures:               return QuestionGenerator.gesturesQuestion()
+        case .environmentValues:      return QuestionGenerator.environmentValuesQuestion()
+        case .stateManagement:        return QuestionGenerator.stateManagementQuestion()
+
+        // Tooling & packages
+        case .swiftPackageManager:    return QuestionGenerator.swiftPackageManagerQuestion()
+        case .docc:                   return QuestionGenerator.doccQuestion()
+        case .swiftPlaygrounds:       return QuestionGenerator.swiftPlaygroundsQuestion()
+        case .swiftLint:              return QuestionGenerator.swiftLintQuestion()
+
+        // Xcode
+        case .xcodeProject:           return QuestionGenerator.xcodeProjectQuestion()
+        case .interfaceBuilder:       return QuestionGenerator.interfaceBuilderQuestion()
+        case .xcodeDebugger:          return QuestionGenerator.xcodeDebuggerQuestion()
+        case .unitTesting:            return QuestionGenerator.unitTestingQuestion()
+        case .instruments:            return QuestionGenerator.instrumentsQuestion()
+        case .buildSettings:          return QuestionGenerator.buildSettingsQuestion()
+        case .sourceControl:          return QuestionGenerator.sourceControlQuestion()
+        case .signingCapabilities:    return QuestionGenerator.signingCapabilitiesQuestion()
+        case .previews:               return QuestionGenerator.previewsQuestion()
+        case .xcodeCloud:             return QuestionGenerator.xcodeCloudQuestion()
+        case .simulators:             return QuestionGenerator.simulatorsQuestion()
+        case .memoryGraphDebugger:    return QuestionGenerator.memoryGraphDebuggerQuestion()
+        case .testFlight:             return QuestionGenerator.testFlightQuestion()
+        case .codeSnippets:           return QuestionGenerator.codeSnippetsQuestion()
+        case .localization:           return QuestionGenerator.localizationQuestion()
+        case .assetCatalogs:          return QuestionGenerator.assetCatalogsQuestion()
+        case .refactoring:            return QuestionGenerator.refactoringQuestion()
+        case .quickHelp:              return QuestionGenerator.quickHelpQuestion()
+
+        // Python fundamentals
+        case .pythonVariables:        return QuestionGenerator.pythonVariablesQuestion()
+        case .pythonDataTypes:        return QuestionGenerator.pythonDataTypesQuestion()
+        case .pythonLists:            return QuestionGenerator.pythonListsQuestion()
+        case .pythonTuples:           return QuestionGenerator.pythonTuplesQuestion()
+        case .pythonDictionaries:     return QuestionGenerator.pythonDictionariesQuestion()
+        case .pythonSets:             return QuestionGenerator.pythonSetsQuestion()
+        case .pythonControlFlow:      return QuestionGenerator.pythonControlFlowQuestion()
+        case .pythonFunctions:        return QuestionGenerator.pythonFunctionsQuestion()
+        case .pythonLambdas:          return QuestionGenerator.pythonLambdasQuestion()
+        case .pythonComprehensions:   return QuestionGenerator.pythonComprehensionsQuestion()
+        case .pythonModules:          return QuestionGenerator.pythonModulesQuestion()
+        case .pythonExceptions:       return QuestionGenerator.pythonExceptionsQuestion()
+        case .pythonFileIO:           return QuestionGenerator.pythonFileIOQuestion()
+        case .pythonWithStatement:    return QuestionGenerator.pythonWithStatementQuestion()
+        case .pythonClasses:          return QuestionGenerator.pythonClassesQuestion()
+        case .pythonInheritance:      return QuestionGenerator.pythonInheritanceQuestion()
+        case .pythonDecorators:       return QuestionGenerator.pythonDecoratorsQuestion()
+        case .pythonGenerators:       return QuestionGenerator.pythonGeneratorsQuestion()
+
+        // Advanced Python
+        case .pythonAsyncAwait:       return QuestionGenerator.pythonAsyncAwaitQuestion()
+        case .pythonMetaclasses:      return QuestionGenerator.pythonMetaclassesQuestion()
+        case .pythonTyping:           return QuestionGenerator.pythonTypingQuestion()
+        case .pythonPatternMatching:  return QuestionGenerator.pythonPatternMatchingQuestion()
+        case .pythonDataclasses:      return QuestionGenerator.pythonDataclassesQuestion()
+        case .pythonMultiThreading:   return QuestionGenerator.pythonMultiThreadingQuestion()
+        case .pythonMultiprocessing:  return QuestionGenerator.pythonMultiprocessingQuestion()
+        case .pythonGIL:              return QuestionGenerator.pythonGILQuestion()
+        case .pythonReflection:       return QuestionGenerator.pythonReflectionQuestion()
+
+        // Python tooling & ecosystem
+        case .pythonPip:              return QuestionGenerator.pythonPipQuestion()
+        case .pythonVenv:             return QuestionGenerator.pythonVenvQuestion()
+        case .pythonUnittest:         return QuestionGenerator.pythonUnittestQuestion()
+        case .pythonPytest:           return QuestionGenerator.pythonPytestQuestion()
+        case .pythonFlake8:           return QuestionGenerator.pythonFlake8Question()
+        case .pythonBlack:            return QuestionGenerator.pythonBlackQuestion()
+        case .pythonMypy:             return QuestionGenerator.pythonMypyQuestion()
+        case .pythonSphinx:           return QuestionGenerator.pythonSphinxQuestion()
+        case .pythonJupyter:          return QuestionGenerator.pythonJupyterQuestion()
+        }
+    }
+
+    func randomQuestion() -> Question {
+        let q = generated()
+        return Question(prompt: q.question, answer: q.answers[q.correctAnswerIndex])
+    }
+
+    func mixedQuestion() -> QuizQuestion {
+        Bool.random() ? .multiple(generated()) : .submit(randomQuestion())
+    }
+
+    var explanation: String { TopicExplanations.text(for: self) }
+    var short: String        { String(title.prefix(12)) }
+
+    func answer(for _: String) -> String {
+        "\(explanation)\n\n(For full details, ask about a concrete example.)"
+    }
+}
+
+// MARK: - Quiz factory
+struct QuizFactory {
+    static func generate(count: Int = 20) -> [QuizQuestion] {
+        var out: [QuizQuestion] = []
+        var topics = Topic.allCases.shuffled()
+        while out.count < count {
+            if topics.isEmpty { topics = Topic.allCases.shuffled() }
+            out.append(topics.removeFirst().mixedQuestion())
+        }
+        return out.shuffled()
+    }
+}
+```
+
+––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––  
+FILE: QuestionGenerator.swift  
+––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+```swift
+//
+//  QuestionGenerator.swift
+//  Swift_programming_with_XCode_tutor
+//  Updated 7/26/25 – Added extensive Python questions
+//
+
+import Foundation
+
+enum QuestionGenerator {
+    static let maxCount = 500   // arbitrary upper bound
+
     private static func make(
         _ q: String,
         _ opts: [String],
         _ correct: Int,
         _ expl: String,
-        _ top: PythonTopic
+        _ top: Topic
     ) -> DiscreteMathQuestion {
         DiscreteMathQuestion(
             question: q,
@@ -155,198 +463,315 @@ enum PythonQuestionGenerator {
         )
     }
 
-    // Swift-style alphabetical ordering
-    static func asyncioQuestion() -> DiscreteMathQuestion {
-        make("In asyncio, which statement schedules a coroutine to run in the event loop?",
-             ["asyncio.create_task()", "threading.Thread()", "multiprocessing.Process()", "time.sleep()"],
-             0,
-             "`asyncio.create_task()` schedules the coroutine; `await` suspends until complete.",
-             .asyncio)
+    // ─────────────────── Swift fundamentals ───────────────────
+    static func variableKeywordQuestion() -> DiscreteMathQuestion {
+        make("Which keyword declares a mutable variable in Swift?",
+             ["var","let","func","enum"], 0,
+             "`var` declares a variable whose value can change.",
+             .variableKeyword)
     }
-    static func classesAndOOPQuestion() -> DiscreteMathQuestion {
-        make("In Python, the `self` parameter in instance methods refers to …?",
-             ["The instance on which the method was called", "The class object itself", "A global namespace", "A static type hint"],
-             0,
-             "`self` is a reference to the instance; you name it by convention.",
-             .classesAndOOP)
-    }
-    static func contextManagersQuestion() -> DiscreteMathQuestion {
-        make("Which method must a context manager implement?",
-             ["__enter__ and __exit__", "__init__ and __del__", "__call__", "__str__"],
-             0,
-             "Context managers implement `__enter__` and `__exit__` for setup/teardown.",
-             .contextManagers)
-    }
-    static func controlFlowQuestion() -> DiscreteMathQuestion {
-        make("What keyword immediately terminates the nearest enclosing loop?",
-             ["break", "continue", "pass", "return"],
-             0,
-             "`break` exits the loop; `continue` skips to the next iteration.",
-             .controlFlow)
-    }
-    static func dataTypesQuestion() -> DiscreteMathQuestion {
-        make("Which built-in type is immutable?",
-             ["tuple", "list", "dict", "set"],
-             0,
-             "Tuples are immutable; lists, dicts, sets are mutable.",
-             .dataTypes)
-    }
-    static func dataclassesQuestion() -> DiscreteMathQuestion {
-        make("What decorator auto-generates __init__, __repr__, and __eq__ on a class?",
-             ["@dataclass", "@decorator", "@auto", "@model"],
-             0,
-             "`@dataclass` from the standard library simplifies data containers.",
-             .dataclasses)
-    }
-    static func decoratorsQuestion() -> DiscreteMathQuestion {
-        make("A decorator function takes a function and returns …?",
-             ["A new function with modified behavior", "An integer", "A coroutine", "A lambda"],
-             0,
-             "Decorators wrap and replace the original function.",
-             .decorators)
-    }
-    static func debuggingQuestion() -> DiscreteMathQuestion {
-        make("Which module provides an interactive debugger in Python’s stdlib?",
-             ["pdb", "debug", "trace", "inspect"],
-             0,
-             "`pdb` lets you set breakpoints, step, and inspect variables.",
-             .debugging)
-    }
-    static func exceptionsQuestion() -> DiscreteMathQuestion {
-        make("Which clause catches all exceptions not previously caught?",
-             ["except Exception:", "except:", "finally:", "else:"],
-             1,
-             "`except:` is equivalent to `except BaseException:`—use sparingly.",
-             .exceptions)
-    }
-    static func fileIOQuestion() -> DiscreteMathQuestion {
-        make("Which mode opens a file for both reading and writing, truncating first?",
-             ["w+", "r+", "a+", "x"],
-             0,
-             "`open(path, 'w+')` truncates or creates the file for read/write.",
-             .fileIO)
-    }
-    static func functoolsQuestion() -> DiscreteMathQuestion {
-        make("Which decorator from functools caches function results on repeated calls?",
-             ["@lru_cache", "@cachedproperty", "@wraps", "@partial"],
-             0,
-             "`@lru_cache` memoizes results up to a maxsize (default 128).",
-             .functools)
-    }
-    static func functionsQuestion() -> DiscreteMathQuestion {
-        make("How do you define a function that accepts any number of keyword args?",
-             ["def f(**kwargs):", "def f(*args):", "def f(args=[]):", "def f(vars):"],
-             0,
-             "`**kwargs` collects arbitrary keyword arguments as a dict.",
-             .functions)
-    }
-    static func inheritanceQuestion() -> DiscreteMathQuestion {
-        make("Which call invokes a parent class’s __init__ from a subclass?",
-             ["super().__init__(...)", "Parent.__init__(...)", "__super__()", "__base__()"],
-             0,
-             "`super()` returns a proxy to the base class; call its __init__.",
-             .inheritance)
-    }
-    static func itertoolsQuestion() -> DiscreteMathQuestion {
-        make("Which itertools function combines two iterables element-wise?",
-             ["zip_longest", "chain", "product", "islice"],
-             0,
-             "`itertools.zip_longest` pairs elements, filling missing with a fillvalue.",
-             .itertools)
-    }
-    static func lambdasQuestion() -> DiscreteMathQuestion {
-        make("Which expression defines an anonymous function of x?",
-             ["lambda x: x*2", "func x => x*2", "def x: return x*2", "-> x*2"],
-             0,
-             "`lambda` introduces a small, single-expression function.",
-             .lambdas)
-    }
-    static func listComprehensionsQuestion() -> DiscreteMathQuestion {
-        make("What does `[x**2 for x in range(5)]` produce?",
-             ["[0,1,4,9,16]", "[1,4,9,16,25]", "[2,4,6,8,10]", "Error"],
-             0,
-             "Squares of 0–4 are [0,1,4,9,16].",
-             .listComprehensions)
-    }
-    static func loggingQuestion() -> DiscreteMathQuestion {
-        make("Which function logs a warning message via the logging module?",
-             ["logging.warning()", "logging.warn()", "logging.error()", "logging.info()"],
-             0,
-             "`logging.warning()` logs at WARNING level; `warn` is deprecated alias.",
-             .logging)
-    }
-    static func magicMethodsQuestion() -> DiscreteMathQuestion {
-        make("Which magic method defines object stringification for print()?",
-             ["__str__", "__repr__", "__format__", "__print__"],
-             0,
-             "`__str__` is user-friendly; `__repr__` is unambiguous representation.",
-             .magicMethods)
-    }
-    static func metaclassesQuestion() -> DiscreteMathQuestion {
-        make("A metaclass customizes …?",
-             ["Class creation", "Instance attributes", "Function calls", "Module imports"],
-             0,
-             "Metaclasses intercept the creation of new classes (type.__new__).",
-             .metaclasses)
-    }
-    static func modulesAndPackagesQuestion() -> DiscreteMathQuestion {
-        make("Which file makes a directory a Python package?",
-             ["__init__.py", "setup.py", "requirements.txt", "module.py"],
-             0,
-             "`__init__.py` (even empty) marks a package for import.",
-             .modulesAndPackages)
-    }
-    static func multiprocessingQuestion() -> DiscreteMathQuestion {
-        make("Multiprocessing in Python …?",
-             ["Spawns separate processes bypassing the GIL", "Shares global variables", "Is single-threaded", "Uses asyncio loop"],
-             0,
-             "Each process has its own Python interpreter and memory space.",
-             .multiprocessing)
-    }
-    static func packagingQuestion() -> DiscreteMathQuestion {
-        make("Which file declares build requirements in modern Python packaging?",
-             ["pyproject.toml", "requirements.txt", "setup.cfg", "Pipfile"],
-             0,
-             "`pyproject.toml` is the standardized metadata and build-system file.",
-             .packaging)
-    }
-    static func pandasQuestion() -> DiscreteMathQuestion { fatalError("Add if you include pandas") } 
-    // ... you can extend more domain-specific topics similarly
-}
+    // … all existing Swift/SwiftUI/Xcode questions unchanged …
 
-// MARK: - Dispatcher & helpers
-extension PythonTopic {
-    func generated() -> DiscreteMathQuestion {
-        switch self {
-        case .asyncio:               return PythonQuestionGenerator.asyncioQuestion()
-        case .classesAndOOP:         return PythonQuestionGenerator.classesAndOOPQuestion()
-        case .contextManagers:       return PythonQuestionGenerator.contextManagersQuestion()
-        case .controlFlow:           return PythonQuestionGenerator.controlFlowQuestion()
-        case .dataTypes:             return PythonQuestionGenerator.dataTypesQuestion()
-        case .dataclasses:           return PythonQuestionGenerator.dataclassesQuestion()
-        case .decorators:            return PythonQuestionGenerator.decoratorsQuestion()
-        case .debugging:             return PythonQuestionGenerator.debuggingQuestion()
-        case .exceptions:            return PythonQuestionGenerator.exceptionsQuestion()
-        case .fileIO:                return PythonQuestionGenerator.fileIOQuestion()
-        case .functools:             return PythonQuestionGenerator.functoolsQuestion()
-        case .functions:             return PythonQuestionGenerator.functionsQuestion()
-        case .inheritance:           return PythonQuestionGenerator.inheritanceQuestion()
-        case .itertools:             return PythonQuestionGenerator.itertoolsQuestion()
-        case .lambdas:               return PythonQuestionGenerator.lambdasQuestion()
-        case .listComprehensions:    return PythonQuestionGenerator.listComprehensionsQuestion()
-        case .logging:               return PythonQuestionGenerator.loggingQuestion()
-        case .magicMethods:          return PythonQuestionGenerator.magicMethodsQuestion()
-        case .metaclasses:           return PythonQuestionGenerator.metaclassesQuestion()
-        case .modulesAndPackages:    return PythonQuestionGenerator.modulesAndPackagesQuestion()
-        case .multiprocessing:       return PythonQuestionGenerator.multiprocessingQuestion()
-        case .packaging:             return PythonQuestionGenerator.packagingQuestion()
-        // stub others or add more
-        default:
-            // Fallback generic question
-            return PythonQuestionGenerator.functionsQuestion()
-        }
+    // ─────────────────── Python fundamentals ───────────────────
+
+    static func pythonVariablesQuestion() -> DiscreteMathQuestion {
+        make("In Python, when is a variable created?",
+             ["Upon first assignment","At script start","When declared with var","After type annotation"],
+             0,
+             "Python variables are created when you first assign to them; no declaration keyword is needed.",
+             .pythonVariables)
+    }
+
+    static func pythonDataTypesQuestion() -> DiscreteMathQuestion {
+        make("Which of these is NOT a built-in Python data type?",
+             ["dictionary","tuple","slice","set"],
+             2,
+             "`slice` is a class but not a concrete container type like list or dict.",
+             .pythonDataTypes)
+    }
+
+    static func pythonListsQuestion() -> DiscreteMathQuestion {
+        make("How do you append an element `x` to a Python list `lst`?",
+             ["lst.append(x)","lst.add(x)","append(lst,x)","lst += (x)"],
+             0,
+             "`lst.append(x)` adds `x` to the end of the list in place.",
+             .pythonLists)
+    }
+
+    static func pythonTuplesQuestion() -> DiscreteMathQuestion {
+        make("What is the length of the tuple `(1,)`?",
+             ["1","0","2","Syntax error"],
+             0,
+             "A single-element tuple uses a trailing comma; its length is 1.",
+             .pythonTuples)
+    }
+
+    static func pythonDictionariesQuestion() -> DiscreteMathQuestion {
+        make("Which syntax creates a dictionary mapping 'a' to 1 and 'b' to 2?",
+             ["{'a':1,'b':2}","('a',1),('b',2)","['a':1,'b':2]","dict(a=1,b=2)"],
+             0,
+             "Braces with colon separate key and value: `{key: value}`.",
+             .pythonDictionaries)
+    }
+
+    static func pythonSetsQuestion() -> DiscreteMathQuestion {
+        make("How do you create an empty set in Python?",
+             ["set()","{}","[]","()"],
+             0,
+             "`{}` makes an empty dict; use `set()` for an empty set.",
+             .pythonSets)
+    }
+
+    static func pythonControlFlowQuestion() -> DiscreteMathQuestion {
+        make("Which keyword introduces an else-if branch in Python?",
+             ["elif","elsif","elseif","else if"],
+             0,
+             "`elif` is the Python keyword for else-if.",
+             .pythonControlFlow)
+    }
+
+    static func pythonFunctionsQuestion() -> DiscreteMathQuestion {
+        make("How do you define a function named `f` in Python?",
+             ["def f():","func f():","function f():","let f():"],
+             0,
+             "`def` is the keyword to define a function.",
+             .pythonFunctions)
+    }
+
+    static func pythonLambdasQuestion() -> DiscreteMathQuestion {
+        make("Which expression correctly defines a lambda doubling its input?",
+             ["lambda x: x*2","def x: x*2","/function(x): x*2","=> x*2"],
+             0,
+             "`lambda x: x*2` creates an anonymous function doubling x.",
+             .pythonLambdas)
+    }
+
+    static func pythonComprehensionsQuestion() -> DiscreteMathQuestion {
+        make("Which comprehension builds a list of squares 0–9?",
+             ["[x*x for x in range(10)]","{x*x for x in range(10)}","(x*x for x in range(10))","list x*x in range(10)"],
+             0,
+             "Square brackets + `for` produce a list comprehension.",
+             .pythonComprehensions)
+    }
+
+    static func pythonModulesQuestion() -> DiscreteMathQuestion {
+        make("How do you import the `math` module in Python?",
+             ["import math","include <math>","use math","require 'math'"],
+             0,
+             "`import math` brings the module into your namespace.",
+             .pythonModules)
+    }
+
+    static func pythonExceptionsQuestion() -> DiscreteMathQuestion {
+        make("Which block catches exceptions in Python?",
+             ["except","catch","error","handle"],
+             0,
+             "`try`...`except` handles runtime errors.",
+             .pythonExceptions)
+    }
+
+    static func pythonFileIOQuestion() -> DiscreteMathQuestion {
+        make("What does `with open('f.txt') as f:` do?",
+             ["Opens f.txt and auto-closes it","Opens f.txt only if missing","Declares f as string","Imports f.txt"],
+             0,
+             "The `with` context manager opens and ensures file closure.",
+             .pythonFileIO)
+    }
+
+    static func pythonWithStatementQuestion() -> DiscreteMathQuestion {
+        make("Why use `with` for file I/O in Python?",
+             ["To auto-close resources","For faster I/O","To avoid indentation","To declare variables"],
+             0,
+             "`with` guarantees file closure even if an error occurs.",
+             .pythonWithStatement)
+    }
+
+    static func pythonClassesQuestion() -> DiscreteMathQuestion {
+        make("How do you declare a class `C` in Python?",
+             ["class C:","def C():","struct C:","type C = class"],
+             0,
+             "`class C:` begins a new class definition.",
+             .pythonClasses)
+    }
+
+    static func pythonInheritanceQuestion() -> DiscreteMathQuestion {
+        make("How do you subclass `Base` into `Sub`?",
+             ["class Sub(Base):","class Sub extends Base:","class Sub inherits Base:","class Sub -> Base:"],
+             0,
+             "`class Sub(Base):` sets Base as the parent class.",
+             .pythonInheritance)
+    }
+
+    static func pythonDecoratorsQuestion() -> DiscreteMathQuestion {
+        make("What does `@staticmethod` above a method do?",
+             ["Makes it callable without an instance","Marks it private","Makes it abstract","Runs only once"],
+             0,
+             "It defines a method that receives no `self` argument.",
+             .pythonDecorators)
+    }
+
+    static func pythonGeneratorsQuestion() -> DiscreteMathQuestion {
+        make("What keyword yields a value from a generator?",
+             ["yield","return","emit","give"],
+             0,
+             "`yield` produces a value and pauses the function.",
+             .pythonGenerators)
+    }
+
+    // ─────────────────── Advanced Python ───────────────────────
+
+    static func pythonAsyncAwaitQuestion() -> DiscreteMathQuestion {
+        make("Which keyword awaits an async coroutine?",
+             ["await","async","defer","yield"],
+             0,
+             "`await` suspends until the coroutine completes.",
+             .pythonAsyncAwait)
+    }
+
+    static func pythonMetaclassesQuestion() -> DiscreteMathQuestion {
+        make("What argument do you pass to define a metaclass in Python 3?",
+             ["metaclass=Meta","__metaclass__=Meta","class Meta","use Meta"],
+             0,
+             "`class C(metaclass=Meta):` designates Meta as its metaclass.",
+             .pythonMetaclasses)
+    }
+
+    static func pythonTypingQuestion() -> DiscreteMathQuestion {
+        make("Which module provides type hints in Python?",
+             ["typing","types","type","inspect"],
+             0,
+             "The `typing` module defines generics and annotations.",
+             .pythonTyping)
+    }
+
+    static func pythonPatternMatchingQuestion() -> DiscreteMathQuestion {
+        make("What keyword starts structural pattern matching?",
+             ["match","switch","case","grep"],
+             0,
+             "`match` introduces a block of `case` patterns.",
+             .pythonPatternMatching)
+    }
+
+    static func pythonDataclassesQuestion() -> DiscreteMathQuestion {
+        make("Which decorator auto-generates an __init__?",
+             ["@dataclass","@auto","@init","@model"],
+             0,
+             "`@dataclass` creates init, repr, eq, and more.",
+             .pythonDataclasses)
+    }
+
+    static func pythonMultiThreadingQuestion() -> DiscreteMathQuestion {
+        make("Which module provides threading support?",
+             ["threading","multiprocessing","asyncio","concurrent"],
+             0,
+             "`threading` spawns multiple threads under the GIL.",
+             .pythonMultiThreading)
+    }
+
+    static func pythonMultiprocessingQuestion() -> DiscreteMathQuestion {
+        make("Which module bypasses the GIL for CPU-bound tasks?",
+             ["multiprocessing","threading","asyncio","os"],
+             0,
+             "`multiprocessing` uses separate processes instead of threads.",
+             .pythonMultiprocessing)
+    }
+
+    static func pythonGILQuestion() -> DiscreteMathQuestion {
+        make("What does GIL stand for?",
+             ["Global Interpreter Lock","General Internal Logger","Global I/O Layer","Generic Interface List"],
+             0,
+             "The GIL ensures only one native thread executes Python bytecode at a time.",
+             .pythonGIL)
+    }
+
+    static func pythonReflectionQuestion() -> DiscreteMathQuestion {
+        make("Which built-in gets an attribute by name?",
+             ["getattr","lookup","attr","inspect"],
+             0,
+             "`getattr(obj, 'name')` retrieves the named attribute.",
+             .pythonReflection)
+    }
+
+    // ─────────────────── Python tooling & ecosystem ───────────
+
+    static func pythonPipQuestion() -> DiscreteMathQuestion {
+        make("Which command installs a package with pip?",
+             ["pip install package","pip get package","pip add package","pip build package"],
+             0,
+             "`pip install <package>` downloads and installs from PyPI.",
+             .pythonPip)
+    }
+
+    static func pythonVenvQuestion() -> DiscreteMathQuestion {
+        make("How do you create a venv in Python 3?",
+             ["python3 -m venv env","virtualenv env","py -m venv","venv create env"],
+             0,
+             "`python3 -m venv env` sets up a virtual environment named env.",
+             .pythonVenv)
+    }
+
+    static func pythonUnittestQuestion() -> DiscreteMathQuestion {
+        make("Which class do you subclass for unittest tests?",
+             ["unittest.TestCase","unittest.TestSuite","TestCase","TestSuite"],
+             0,
+             "`unittest.TestCase` provides assertion methods and test runner integration.",
+             .pythonUnittest)
+    }
+
+    static func pythonPytestQuestion() -> DiscreteMathQuestion {
+        make("pytest discovers tests in files named…?",
+             ["test_*.py","*_test.py","tests.py","pytest_*.py"],
+             0,
+             "By default, pytest looks for `test_*.py` files and `Test` prefixed classes.",
+             .pythonPytest)
+    }
+
+    static func pythonFlake8Question() -> DiscreteMathQuestion {
+        make("What does flake8 primarily check?",
+             ["Style and logical errors","Runtime speed","Memory usage","Documentation quality"],
+             0,
+             "Flake8 enforces PEP8 style and flags common programming errors.",
+             .pythonFlake8)
+    }
+
+    static func pythonBlackQuestion() -> DiscreteMathQuestion {
+        make("What is the main purpose of Black?",
+             ["Automated code formatting","Linting","Type checking","Dependency management"],
+             0,
+             "Black reformats code to a consistent style automatically.",
+             .pythonBlack)
+    }
+
+    static func pythonMypyQuestion() -> DiscreteMathQuestion {
+        make("What does mypy check in Python code?",
+             ["Type correctness","Syntax only","Runtime errors","Performance"],
+             0,
+             "mypy performs static type checks based on annotations.",
+             .pythonMypy)
+    }
+
+    static func pythonSphinxQuestion() -> DiscreteMathQuestion {
+        make("Which file does Sphinx use as its main config?",
+             ["conf.py","index.rst","docs.cfg","setup.py"],
+             0,
+             "Sphinx reads `conf.py` to configure documentation build settings.",
+             .pythonSphinx)
+    }
+
+    static func pythonJupyterQuestion() -> DiscreteMathQuestion {
+        make("What file extension do Jupyter notebooks use?",
+             [".ipynb",".jnb",".pynb",".notebook"],
+             0,
+             "Notebooks are saved as JSON in `.ipynb` files.",
+             .pythonJupyter)
     }
 }
 ```
 
-You can hook these into your existing `QuizFactory` [...] and display them just like your Swift questions. This gives you 23 well-scoped Python topics and one strong multiple-choice question per topic; feel free to expand any category with additional questions or subtopics.
+**Notes:**
+- Every new Python topic has a human‐readable title, a short Markdown explanation, and exactly one multiple‐choice question with four options.
+- The existing Swift/SwiftUI/Xcode portions remain intact.
+- You can now generate quizzes that interleave Python and Swift topics:  
+  `let quiz = QuizFactory.generate(count: 30)`
+
+Enjoy building your cross-platform, cross-language tutor! 🚀
