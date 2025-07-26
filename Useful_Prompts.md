@@ -1,0 +1,1 @@
+without changing or adding any structs, turn these 2 swift files into the most comprehensive and greatest physics learning files possible: 
