@@ -1,0 +1,614 @@
+Below are three self-contained Swift files that turn the former Discrete-Math project into a Python-programming tutor.  
+All framework imports and utility helpers that were not math-specific have been kept; only math-related code was replaced with Python topics, explanations and question generators.
+
+–––––––– 1.  ContentView.swift ––––––––
+
+```swift
+//
+//  ContentView.swift
+//  python_tutor
+//
+
+import SwiftUI
+import AVFoundation
+import Combine
+import UIKit
+
+// MARK: Settings / status
+
+final class AppSettings: ObservableObject {
+    @AppStorage("defaultTimer") var defaultTimer = 30
+    @AppStorage("enableHaptics") var enableHaptics = true
+    @AppStorage("enableSound")   var enableSound   = true
+}
+
+final class APIStatus: ObservableObject {
+    @Published var inProgress = false
+    @Published var elapsed = 0
+    var max = 180
+    private var t: AnyCancellable?
+    func start() {
+        inProgress = true; elapsed = 0
+        t?.cancel()
+        t = Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect().sink { [weak self] _ in
+                guard let self else { return }
+                if elapsed < max { elapsed += 1 } else { stop() }
+            }
+    }
+    func stop() { inProgress = false; t?.cancel(); t = nil; elapsed = 0 }
+}
+
+// MARK: Small helpers
+
+struct ConfettiView: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let v = UIView(); let e = CAEmitterLayer()
+        e.emitterPosition = .init(x: UIScreen.main.bounds.midX, y: -10)
+        e.emitterShape = .line; e.emitterSize = .init(width: UIScreen.main.bounds.width, height: 1)
+        e.beginTime = CACurrentMediaTime()
+        e.emitterCells = (0..<12).map { i in
+            let c = CAEmitterCell(); c.birthRate = 4; c.lifetime = 5; c.velocity = 160
+            c.velocityRange = 60; c.spin = 4; c.scale = 0.5; c.scaleRange = 0.3
+            c.emissionRange = .pi
+            c.contents = UIImage(systemName: ["chevron.left.forwardslash.chevron.right",
+                                              "curlybraces","c.square","swift","terminal"] [i%5]
+            )!.withRenderingMode(.alwaysTemplate).cgImage
+            c.color = UIColor(hue: CGFloat(i)/12, saturation: 0.9, brightness: 1, alpha: 1).cgColor
+            return c
+        }
+        v.layer.addSublayer(e)
+        DispatchQueue.main.asyncAfter(deadline: .now()+4) { e.birthRate = 0 }
+        return v
+    }
+    func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
+struct APIOverlay: View {
+    @EnvironmentObject private var api: APIStatus
+    var body: some View {
+        if api.inProgress {
+            ZStack {
+                Color.black.opacity(0.4).ignoresSafeArea()
+                VStack(spacing: 14) {
+                    ProgressView(value: Double(api.elapsed), total: Double(api.max))
+                        .progressViewStyle(.circular)
+                    Text("Calling AI… \(api.elapsed)s")
+                }
+                .padding(24)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+            }
+            .transition(.opacity)
+        }
+    }
+}
+
+// MARK: Main start view
+
+struct StartView: View {
+    enum Mode: String, CaseIterable { case learn, quiz, tutor }
+    @State private var mode: Mode = .learn
+    @State private var qCount = 10
+    @State private var chosen = Set<PythonTopic>(PythonTopic.allCases)
+    @State private var tutorTopic: PythonTopic = .variables
+    @State private var runTutor = false
+    @EnvironmentObject private var api: APIStatus
+
+    @ViewBuilder
+    private var panel: some View {
+        switch mode {
+        case .learn:
+            VStack(spacing: 18) {
+                NavigationLink { TopicListView() } label: {
+                    Label("Browse Topics", systemImage:"list.bullet.rectangle")
+                }.buttonStyle(.borderedProminent)
+            }
+        case .quiz:
+            VStack(spacing: 18) {
+                Gauge(value: Double(qCount), in: 5...50) {
+                    Text("Questions")
+                } currentValueLabel: { Text("\(qCount)") }
+                    .gaugeStyle(.accessoryCircularCapacity)
+                    .frame(width: 120,height:120)
+                Stepper("", value:$qCount, in:5...50).labelsHidden()
+                DisclosureGroup("Pick topics") {
+                    ForEach(PythonTopic.allCases) { t in
+                        Toggle(isOn: Binding(
+                            get: { chosen.contains(t) },
+                            set: { v in v ? chosen.insert(t):chosen.remove(t) })
+                        ) { Text(t.title) }.toggleStyle(.switch).tint(.orange)
+                    }
+                }.padding().background(.thinMaterial,in:RoundedRectangle(cornerRadius:10))
+                NavigationLink {
+                    QuizView(qCount: qCount, topics: chosen)
+                } label: {
+                    Label("Start Quiz", systemImage:"play.circle.fill")
+                }
+                .buttonStyle(.borderedProminent).disabled(chosen.isEmpty)
+            }
+        case .tutor:
+            VStack(spacing: 20) {
+                Picker("Topic",selection:$tutorTopic){
+                    ForEach(PythonTopic.allCases){ Text($0.title).tag($0)}
+                }.pickerStyle(.wheel).frame(height:160)
+                    .background(.thinMaterial,in:RoundedRectangle(cornerRadius:10))
+                Button {
+                    runTutor = true
+                } label: {
+                    Label("Begin Tutor Session", systemImage:"person.fill.questionmark")
+                }.buttonStyle(.borderedProminent)
+                    .disabled(api.inProgress)
+                NavigationLink("", isActive:$runTutor){
+                    TutorView(topic:tutorTopic)
+                }
+            }
+        }
+    }
+
+    var body: some View {
+        NavigationStack{
+            VStack(spacing:28){
+                Spacer()
+                Text("Python Tutor").font(.largeTitle.bold())
+                Picker("Mode",selection:$mode){
+                    ForEach(Mode.allCases, id:\.self){ Text($0.rawValue.capitalized)}
+                }.pickerStyle(.segmented)
+                panel
+                Spacer()
+            }
+            .padding().background(
+                LinearGradient(colors:[.black,.purple],startPoint:.top,endPoint:.bottom)
+                    .ignoresSafeArea())
+        }
+        .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: Learning
+
+struct TopicListView: View {
+    @State private var search = ""
+    private var list:[PythonTopic] {
+        search.isEmpty ? PythonTopic.allCases :
+            PythonTopic.allCases.filter{$0.title.localizedCaseInsensitiveContains(search)}
+    }
+    var body: some View {
+        List(list){ t in
+            NavigationLink(t.title){ TopicDetail(topic:t) }
+        }.navigationTitle("Topics")
+            .searchable(text:$search)
+    }
+}
+
+struct TopicDetail: View {
+    let topic: PythonTopic
+    var body: some View {
+        ScrollView{ Text(topic.explanation).padding() }
+            .navigationTitle(topic.title)
+    }
+}
+
+// MARK: Quiz
+
+struct QuizView: View {
+    let qCount:Int
+    let topics:Set<PythonTopic>
+    @State private var qs:[QuizQ] = []
+    @State private var idx = 0
+    @State private var showConfetti = false
+    var body: some View {
+        VStack(spacing:24){
+            if idx < qs.count {
+                let q = qs[idx]
+                Text(q.prompt).font(.title3)
+                ForEach(q.answers.indices,id:\.self){ i in
+                    Button(q.answers[i]){
+                        if i == q.correct { showConfetti = true }
+                        idx += 1
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else {
+                Text("Done!").font(.largeTitle.bold())
+            }
+        }
+        .padding()
+        .onAppear{ qs = QuestionGenerator.make(count:qCount, from:topics) }
+        .navigationTitle("Quiz")
+        .overlay{ if showConfetti { ConfettiView().ignoresSafeArea()
+                .onAppear{ DispatchQueue.main.asyncAfter(deadline:.now()+2){showConfetti=false}}}}
+    }
+}
+
+// MARK: Tutor (stream)
+
+struct TutorView: View {
+    let topic: PythonTopic
+    @EnvironmentObject private var api: APIStatus
+    @State private var chat:[(String,Bool)] = []
+    @State private var input = ""
+    @State private var once = false
+    private let synth = AVSpeechSynthesizer()
+
+    var body: some View {
+        ZStack{
+            VStack{
+                ScrollViewReader{proxy in
+                    ScrollView{
+                        LazyVStack(alignment:.leading,spacing:12){
+                            ForEach(Array(chat.enumerated()),id:\.offset){ i,msg in
+                                HStack{
+                                    if msg.1{Spacer()}
+                                    Text(msg.0).padding(10)
+                                        .background(msg.1 ? .blue.opacity(0.3):.gray.opacity(0.2))
+                                        .clipShape(.rect(cornerRadius:10))
+                                    if !msg.1{Spacer()}
+                                }.id(i)
+                            }
+                        }.padding(.horizontal)
+                            .onChange(of:chat.count){ _ in proxy.scrollTo(chat.count-1)}
+                    }
+                }
+                HStack{
+                    TextField("Ask…",text:$input,axis:.vertical)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Send"){ send() }
+                        .disabled(input.trimmingCharacters(in:.whitespaces).isEmpty || api.inProgress)
+                }.padding()
+            }
+            APIOverlay()
+        }
+        .navigationTitle(topic.title)
+        .task{ if !once { once=true; await explain() } }
+    }
+
+    private func explain() async {
+        api.start(); chat.append(("",false))
+        var answer = ""
+        do {
+            try await OpenAI.askStream(
+                prompt:"You are a senior Python instructor. Give a thorough tutorial on \(topic.title) with code samples, pitfalls, exercises.",
+                model:"gpt-3.5-turbo"){ delta in
+                answer += delta
+                Task{@MainActor in chat[0].0 = answer }
+            }
+            synth.speak(.init(string:answer))
+        } catch { chat[0].0 = "Error: \(error.localizedDescription)"}
+        api.stop()
+    }
+
+    private func send() {
+        let q = input.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !q.isEmpty else { return }
+        chat.append((q,true)); input=""
+        chat.append(("",false))
+        let idx = chat.count-1
+        api.start()
+        Task{
+            var ans=""
+            do{
+                try await OpenAI.askStream(prompt:q, model:"gpt-3.5-turbo"){ d in
+                    ans += d
+                    Task{@MainActor in chat[idx].0 = ans }
+                }
+            }catch{ chat[idx].0="Error: \(error.localizedDescription)"}
+            api.stop()
+        }
+    }
+}
+
+// MARK: OpenAI helper
+
+enum OpenAI {
+    static func askStream(prompt:String, model:String,
+                          _ update:@escaping(String)->Void) async throws {
+        let url = URL(string:"https://api.openai.com/v1/chat/completions")!
+        var req = URLRequest(url:url); req.httpMethod="POST"
+        req.addValue("application/json",forHTTPHeaderField:"Content-Type")
+        req.addValue("Bearer \(Secrets.openAI)",forHTTPHeaderField:"Authorization")
+        let body:[String:Any] = ["model":model,
+                                 "stream":true,
+                                 "messages":[["role":"user","content":prompt]]]
+        req.httpBody = try JSONSerialization.data(withJSONObject:body)
+        let (bytes,_) = try await URLSession.shared.bytes(for:req)
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data:") else { continue }
+            let s = String(line.dropFirst(5)).trimmingCharacters(in:.whitespaces)
+            guard s != "[DONE]", let d = s.data(using:.utf8),
+                  let j = try? JSONSerialization.jsonObject(with:d) as? [String:Any],
+                  let c = (j["choices"] as? [[String:Any]])?.first,
+                  let delta = (c["delta"] as? [String:Any])?["content"] as? String else { continue }
+            await MainActor.run { update(delta) }
+        }
+    }
+}
+
+// MARK: Entry
+
+struct ContentView: View {
+    @StateObject private var settings = AppSettings()
+    @StateObject private var api = APIStatus()
+    var body: some View {
+        StartView()
+            .environmentObject(settings)
+            .environmentObject(api)
+    }
+}
+
+#Preview { ContentView() }
+```
+
+–––––––– 2.  PythonTopics.swift ––––––––
+
+```swift
+//
+//  PythonTopics.swift
+//
+
+import Foundation
+
+enum PythonTopic: String, CaseIterable, Identifiable, Hashable {
+    case variables, dataTypes, stringSlicing, listComprehension, dictionaries
+    case forLoop, whileLoop, functions, recursion, lambda
+    case classes, inheritance, magicMethods, exceptions, contextManager
+    case fileIO, modules, decorators, generators, asyncAwait
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .variables:        return "Variables & Assignment"
+        case .dataTypes:        return "Built-in Data Types"
+        case .stringSlicing:    return "String Slicing"
+        case .listComprehension:return "List Comprehensions"
+        case .dictionaries:     return "Dictionaries"
+        case .forLoop:          return "for-loops & range"
+        case .whileLoop:        return "while-loops & break"
+        case .functions:        return "Defining Functions"
+        case .recursion:        return "Recursion"
+        case .lambda:           return "λ (lambda) Functions"
+        case .classes:          return "Classes"
+        case .inheritance:      return "Inheritance"
+        case .magicMethods:     return "__dunder__ Methods"
+        case .exceptions:       return "Exception Handling"
+        case .contextManager:   return "With / Context Managers"
+        case .fileIO:           return "File I/O"
+        case .modules:          return "Modules & Packages"
+        case .decorators:       return "Decorators"
+        case .generators:       return "Iterators & Generators"
+        case .asyncAwait:       return "Async / Await"
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .variables:
+            return """
+            Variables in Python are names bound to objects. Assignment creates the binding:
+            >>> x = 3
+            >>> y = x
+            Both names now reference the same int object 3.
+            """
+        case .dataTypes:
+            return """
+            Core immutable types: int, float, bool, str, tuple, frozenset, bytes.
+            Mutable types: list, dict, set, bytearray.
+            """
+        case .stringSlicing:
+            return """
+            Slicing: s[start:stop:step].
+            >>> s = 'python'
+            >>> s[1:4]   # 'yth'
+            Negative indices count from the end.
+            """
+        case .listComprehension:
+            return """
+            [expr for item in iterable if cond]
+            >>> squares = [i*i for i in range(5)]
+            """
+        case .dictionaries:
+            return """
+            dict maps keys→values.  Methods: .get(), .items(), .setdefault().
+            """
+        case .forLoop:
+            return """
+            for i in range(5): print(i)
+            range(a,b,s) yields arithmetic progression lazily.
+            """
+        case .whileLoop:
+            return """
+            while cond: … ;  break exits; continue skips iteration.
+            """
+        case .functions:
+            return """
+            def add(a,b=0,*args,**kw): return a+b
+            Functions are first-class objects, support annotations and docstrings.
+            """
+        case .recursion:
+            return """
+            Recursion uses call stack; ensure base-case.  sys.setrecursionlimit controls depth.
+            """
+        case .lambda:
+            return """
+            lambda args: expression   (single expression only)
+            map(lambda x:x+1,seq)
+            """
+        case .classes:
+            return """
+            class Point:
+                def __init__(self,x,y): …
+            Methods receive self automatically.
+            """
+        case .inheritance:
+            return """
+            class Child(Base): …
+            super().__init__() calls parent.
+            """
+        case .magicMethods:
+            return """
+            __str__, __repr__, __len__, __add__, __iter__ let objects mimic built-ins.
+            """
+        case .exceptions:
+            return """
+            try: … except ValueError as e: … finally: …
+            raise CustomError('msg')
+            """
+        case .contextManager:
+            return """
+            with open('f.txt') as f: …
+            __enter__/__exit__ implement custom managers.
+            """
+        case .fileIO:
+            return """
+            open(path,'r',encoding='utf8'); modes r,w,a,b,+
+            """
+        case .modules:
+            return """
+            import math as m ;  from collections import Counter
+            __init__.py marks a package.
+            """
+        case .decorators:
+            return """
+            @decorator def func(): …
+            A decorator is a function returning a callable wrapper.
+            """
+        case .generators:
+            return """
+            def gen(): yield 1; yield 2
+            Next values produced lazily; supports send(), throw().
+            """
+        case .asyncAwait:
+            return """
+            async def fetch(): await aiohttp.get(url)
+            Requires event loop; asyncio.run(coro()) entry-point.
+            """
+        }
+    }
+}
+
+// MARK: Quiz question model
+
+struct QuizQ: Identifiable {
+    let id = UUID()
+    let prompt: String
+    let answers: [String]
+    let correct: Int
+}
+```
+
+–––––––– 3.  QuestionGenerator.swift ––––––––
+
+```swift
+//
+//  QuestionGenerator.swift
+//
+
+import Foundation
+
+enum QuestionGenerator {
+
+    private static func shuffle(_ correct: String, wrong: [String]) -> ([String], Int) {
+        var all = wrong + [correct]
+        all.shuffle()
+        return (all, all.firstIndex(of: correct)!)
+    }
+
+    // one sample question per topic
+    private static func make(_ t: PythonTopic) -> QuizQ {
+        switch t {
+
+        case .variables:
+            let (ans,idx) = shuffle("5", wrong:["3","32","Error"])
+            return QuizQ(prompt:"x=3; x+=2; print(x) ?", answers:ans, correct:idx)
+
+        case .dataTypes:
+            let (ans,idx) = shuffle("list", wrong:["dict","set","tuple"])
+            return QuizQ(prompt:"type([]) returns … ?", answers:ans, correct:idx)
+
+        case .stringSlicing:
+            let (ans,idx) = shuffle("tho", wrong:["yth","hon","yt"])
+            return QuizQ(prompt:"'python'[2:5] = ?", answers:ans, correct:idx)
+
+        case .listComprehension:
+            let (ans,idx) = shuffle("[0,1,4,9]", wrong:["[1,4,9]","(0,1,4,9)","Error"])
+            return QuizQ(prompt:"[i*i for i in range(4)] = ?", answers:ans, correct:idx)
+
+        case .dictionaries:
+            let (ans,idx) = shuffle("KeyError", wrong:["None","0","False"])
+            return QuizQ(prompt:"{}['k'] raises … ?", answers:ans, correct:idx)
+
+        case .forLoop:
+            let (ans,idx) = shuffle("0 1 2", wrong:["1 2 3","0 1 2 3","0 1 2 3 4"])
+            return QuizQ(prompt:"for i in range(3): print(i) outputs?", answers:ans, correct:idx)
+
+        case .whileLoop:
+            let (ans,idx) = shuffle("4", wrong:["5","0","-1"])
+            return QuizQ(prompt:"i=0\nwhile i<5:\n i+=1\nprint(i)", answers:ans, correct:idx)
+
+        case .functions:
+            let (ans,idx) = shuffle("6", wrong:["5","7","TypeError"])
+            return QuizQ(prompt:"def f(a,b=3): return a+b\nprint(f(3))", answers:ans, correct:idx)
+
+        case .recursion:
+            let (ans,idx) = shuffle("120", wrong:["24","720","TypeError"])
+            return QuizQ(prompt:"Factorial(5) recursive result?", answers:ans, correct:idx)
+
+        case .lambda:
+            let (ans,idx) = shuffle("9", wrong:["27","3","Error"])
+            return QuizQ(prompt:"(lambda x:x**2)(3) ?", answers:ans, correct:idx)
+
+        case .classes:
+            let (ans,idx) = shuffle("Point", wrong:["object","None","TypeError"])
+            return QuizQ(prompt:"class Point: pass\np=Point()\nprint(type(p).__name__)", answers:ans, correct:idx)
+
+        case .inheritance:
+            let (ans,idx) = shuffle("Base", wrong:["Child","object","TypeError"])
+            return QuizQ(prompt:"class Base: pass\nclass Child(Base): pass\nprint(Child.__mro__[1].__name__)", answers:ans, correct:idx)
+
+        case .magicMethods:
+            let (ans,idx) = shuffle("__str__", wrong:["__len__","__iter__","__call__"])
+            return QuizQ(prompt:"Method for human-readable representation?", answers:ans, correct:idx)
+
+        case .exceptions:
+            let (ans,idx) = shuffle("finally", wrong:["except","else","raise"])
+            return QuizQ(prompt:"Block that always executes?", answers:ans, correct:idx)
+
+        case .contextManager:
+            let (ans,idx) = shuffle("__exit__", wrong:["__del__","__iter__","__call__"])
+            return QuizQ(prompt:"Context manager closes via … ?", answers:ans, correct:idx)
+
+        case .fileIO:
+            let (ans,idx) = shuffle("write-only", wrong:["append","read/write","binary"])
+            return QuizQ(prompt:"mode 'w' in open() means … ?", answers:ans, correct:idx)
+
+        case .modules:
+            let (ans,idx) = shuffle("math", wrong:["cmath","numpy","statistics"])
+            return QuizQ(prompt:"sqrt() lives in which stdlib module?", answers:ans, correct:idx)
+
+        case .decorators:
+            let (ans,idx) = shuffle("wraps", wrong:["partial","cmp_to_key","lru_cache"])
+            return QuizQ(prompt:"functools helper that preserves __name__?", answers:ans, correct:idx)
+
+        case .generators:
+            let (ans,idx) = shuffle("StopIteration", wrong:["GeneratorExit","RuntimeError","ValueError"])
+            return QuizQ(prompt:"next(gen) after exhaustion raises … ?", answers:ans, correct:idx)
+
+        case .asyncAwait:
+            let (ans,idx) = shuffle("await", wrong:["yield","return","pass"])
+            return QuizQ(prompt:"Keyword that suspends coroutine?", answers:ans, correct:idx)
+        }
+    }
+
+    static func make(count:Int, from topics:Set<PythonTopic>) -> [QuizQ] {
+        var out:[QuizQ] = []
+        var pool = Array(topics)
+        while out.count < count {
+            if pool.isEmpty { pool = Array(topics) }
+            out.append( make(pool.removeFirst()) )
+        }
+        return out.shuffled()
+    }
+}
+```
+
+Add your own `Secrets.swift` (containing the OpenAI key) or replace the network calls with stubs to run without an API key.
