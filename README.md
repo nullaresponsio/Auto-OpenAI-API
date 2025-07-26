@@ -1,3 +1,6 @@
+
+<img width="1362" height="780" alt="Screenshot 2025-07-26 at 3 03 04 AM" src="https://github.com/user-attachments/assets/f8119127-5a38-43e9-92e7-c6d701c92781" />
+
 # Iterative OpenAI Generation Tool README
 
 > **Sample usage (quick-start)**  
