@@ -1,1 +1,1 @@
-python3.13 iterate_ai.py --instructions prompt.txt --filepaths Topics.swift QuestionGenerator.swift --model o4-mini
+python3.13 iterate_ai.py --filepaths Topics.swift QuestionGenerator.swift --model o4-mini

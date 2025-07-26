@@ -10,10 +10,8 @@ import ssl
 from email.message import EmailMessage
 from openai import OpenAI
 
-# constants
 INSTRUCTIONS = (
-    "enhance teaching and quizzing topics as best and as comprehensively as possible; "
-    "provide the Swift code for both files in full including unchanged parts:"
+    "add as many topics and high quality questions for learning python as possible; do as great a job as you can: "
 )
 DEFAULT_MODEL = "o3-pro"
 MAX_RETRIES = 5
@@ -32,6 +30,10 @@ def diff_ratio(a: str, b: str) -> float:
     return 1.0 - difflib.SequenceMatcher(None, a, b).ratio()
 
 
+def token_len(s: str) -> int:
+    return len(re.findall(r"\S+", s))
+
+
 def request_with_retry(client: OpenAI, model: str, instructions: str,
                        history: str, iteration: int) -> str:
     for attempt in range(MAX_RETRIES + 1):
@@ -40,24 +42,25 @@ def request_with_retry(client: OpenAI, model: str, instructions: str,
 
         def timer():
             while not done.is_set():
-                print(f"[DEBUG] iter {iteration}, try {attempt + 1}: {int(time.time() - start)}s")
+                print(f"[DEBUG] model {model} iter {iteration}, try {attempt + 1}: {int(time.time() - start)}s")
                 time.sleep(1)
 
         threading.Thread(target=timer, daemon=True).start()
         try:
-            print(f"[DEBUG] iter {iteration}, try {attempt + 1}: sending request")
+            print(f"[DEBUG] model {model} iter {iteration}, try {attempt + 1}: "
+                  f"instructions_len={token_len(instructions)}, input_len={token_len(history)}")
             resp = client.responses.create(model=model,
                                            instructions=instructions,
                                            input=history)
             done.set()
-            print(f"[DEBUG] iter {iteration}, try {attempt + 1}: success")
+            print(f"[DEBUG] model {model} iter {iteration}, try {attempt + 1}: success")
             return resp.output_text
         except Exception as e:
             done.set()
-            print(f"[ERROR] iter {iteration}, try {attempt + 1}: {e}")
+            print(f"[ERROR] model {model} iter {iteration}, try {attempt + 1}: {e}")
             if attempt == MAX_RETRIES:
                 raise
-            print(f"[DEBUG] iter {iteration}: retrying in {RETRY_DELAY}s")
+            print(f"[DEBUG] model {model} iter {iteration}: retrying in {RETRY_DELAY}s")
             time.sleep(RETRY_DELAY)
     raise RuntimeError("unreachable")
 
@@ -95,22 +98,23 @@ def parse_multi_file_output(text, input_paths):
     return out_map or None
 
 
-def write_outputs(text, args, programming_mode):
+def write_outputs(text, args, programming_mode) -> bool:
     if not programming_mode or args.no_direct:
-        return
+        return True
     if len(args.filepaths) == 1:
         with open(args.filepaths[0], "w", encoding="utf-8") as f:
             f.write(text)
         print(f"[DEBUG] updated {args.filepaths[0]}")
-    else:
-        out_map = parse_multi_file_output(text, args.filepaths)
-        if out_map:
-            for path, content in out_map.items():
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                print(f"[DEBUG] updated {path}")
-        else:
-            print("[WARN] could not match output to files on this iteration")
+        return True
+    out_map = parse_multi_file_output(text, args.filepaths)
+    if out_map:
+        for path, content in out_map.items():
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            print(f"[DEBUG] updated {path}")
+        return True
+    print("[WARN] could not match output to files on this iteration")
+    return False
 
 
 def main():
@@ -137,6 +141,9 @@ def main():
         PROGRAMMING_EXTENSIONS = {e if e.startswith('.') else f'.{e}'
                                   for e in args.extensions.split(',')}
 
+    print(f"[DEBUG] model selected: {args.model}")
+    print(f"[DEBUG] instructions_len={token_len(INSTRUCTIONS)}")
+
     threshold = (args.threshold_percent / 100
                  if args.threshold_percent is not None else args.threshold)
 
@@ -149,6 +156,7 @@ def main():
 
     current_text = gather_input(args.filepaths)
     history_text = current_text
+    print(f"[DEBUG] initial input_len={token_len(history_text)}")
 
     client = OpenAI(api_key=args.api_key or os.environ.get("OPENAI_API_KEY"))
 
@@ -187,7 +195,9 @@ def main():
             df.write(new_text)
         print(f"[DEBUG] iter {iteration}: response written to {dbg_path}")
 
-        write_outputs(new_text, args, programming_mode)
+        if not write_outputs(new_text, args, programming_mode):
+            print(f"[DEBUG] iter {iteration}: stopping due to unmatched outputs")
+            break
 
         ratio = diff_ratio(current_text, new_text)
         print(f"[DEBUG] iter {iteration}: diff_ratio={ratio:.6f}")
