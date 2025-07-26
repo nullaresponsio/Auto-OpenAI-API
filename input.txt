@@ -1,940 +1,121 @@
-//  Discrete Math Tutor
-//  Updated 7/26/25
-
-import SwiftUI
-import SwiftData
-import Charts
-import StoreKit
-import AVFoundation
-import Combine
-import UIKit
-import AudioToolbox
-import GameKit
-
-// MARK: – Settings
-
-final class AppSettings: ObservableObject {
-    @AppStorage("defaultTimer") var defaultTimer: Int  = 30
-    @AppStorage("enableHaptics") var enableHaptics: Bool = true
-    @AppStorage("enableSound")   var enableSound: Bool   = true
-    @AppStorage("adsRemoved")    var adsRemoved:  Bool   = false
-    @AppStorage("unlockedBadges") private var raw: String = ""
-    var unlockedBadges: Set<String> {
-        get { Set(raw.split(separator: ",").map(String.init)) }
-        set { raw = newValue.joined(separator: ",") }
-    }
-}
-
-// MARK: – Global API Status
-
-final class APIStatus: ObservableObject {
-    @Published var inProgress = false
-    @Published var elapsed = 0
-    var maxDuration = 180
-    private var timer: AnyCancellable?
-    func start() {
-        inProgress = true
-        elapsed = 0
-        timer?.cancel()
-        timer = Timer.publish(every: 1, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                guard let self else { return }
-                if elapsed < maxDuration { elapsed += 1 } else { stop() }
-            }
-    }
-    func stop() {
-        inProgress = false
-        timer?.cancel()
-        timer = nil
-        elapsed = 0
-    }
-}
-
-// MARK: – Feedback
-
-enum Haptic {
-    static func success() { UIImpactFeedbackGenerator(style: .rigid).impactOccurred() }
-    static func error()   { UINotificationFeedbackGenerator().notificationOccurred(.error) }
-}
-
-enum Sound {
-    static func play(systemID: SystemSoundID) { AudioServicesPlaySystemSound(systemID) }
-    static func correct() { play(systemID: 1025) }
-    static func wrong()   { play(systemID: 1053) }
-}
-
-// MARK: – Confetti
-
-struct ConfettiView: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        let emitter = CAEmitterLayer()
-        emitter.emitterPosition = CGPoint(x: UIScreen.main.bounds.midX, y: -10)
-        emitter.emitterShape = .line
-        emitter.emitterSize = CGSize(width: UIScreen.main.bounds.width, height: 1)
-        emitter.beginTime = CACurrentMediaTime()
-        emitter.emitterCells = (0..<16).map { i in
-            let cell = CAEmitterCell()
-            cell.birthRate = 3
-            cell.lifetime = 6
-            cell.velocity = 150
-            cell.velocityRange = 50
-            cell.spin = 3
-            cell.spinRange = 4
-            cell.scale = 0.6
-            cell.scaleRange = 0.4
-            cell.emissionRange = .pi
-            cell.contents = UIImage(
-                systemName: ["heart.fill","star.fill","rosette",
-                             "hexagon.fill","circle.fill"][i%5]
-            )?.withRenderingMode(.alwaysTemplate).cgImage
-            cell.color = UIColor(
-                hue: CGFloat(i)/16, saturation: 0.9, brightness: 1, alpha: 1
-            ).cgColor
-            return cell
-        }
-        view.layer.addSublayer(emitter)
-        DispatchQueue.main.asyncAfter(deadline: .now()+4) { emitter.birthRate = 0 }
-        return view
-    }
-    func updateUIView(_ uiView: UIView, context: Context) {}
-}
-
-// MARK: – API Progress Overlay
-
-struct APIProgressOverlay: View {
-    @EnvironmentObject private var apiStatus: APIStatus
-    var body: some View {
-        if apiStatus.inProgress {
-            ZStack {
-                Color.black.opacity(0.4).ignoresSafeArea()
-                VStack(spacing: 16) {
-                    ProgressView(value: Double(apiStatus.elapsed),
-                                 total: Double(apiStatus.maxDuration))
-                        .progressViewStyle(.circular)
-                    Text("AI call… \(apiStatus.elapsed)s")
-                        .font(.headline)
-                }
-                .padding(24)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-                .shadow(radius: 20)
-            }
-            .transition(.opacity)
-        }
-    }
-}
-
-// MARK: – Top Nav Bar
-
-struct TopNavBar: View {
-    var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 8) {
-                Image(systemName: "doc.richtext")
-                    .font(.system(size: 28, weight: .bold))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.pink, .orange)
-                Text("Welcome to PDFSage")
-                    .font(.title2.weight(.heavy))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.pink, .orange, .yellow],
-                                       startPoint: .leading, endPoint: .trailing))
-            }
-            .padding(.top, 4)
-            HStack(spacing: 20) {
-                Link("Support", destination: URL(string: "https://pdfsage.co/support")!)
-                Link("bo@shang.software", destination: URL(string: "mailto:bo@shang.software")!)
-                Link("978-737-5305", destination: URL(string: "tel:9787375305")!)
-            }
-            .font(.footnote).foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial.shadow(.drop(radius: 8)))
-    }
-}
-
-// MARK: – Start Screen
-
-struct StartView: View {
-    enum Mode: String, CaseIterable { case learn, quiz, tutor }
-    @State private var mode: Mode = .learn
-    @State private var count = 10
-    @State private var selectedTopics = Set(Topic.allCases)
-    @State private var selectedTutorTopic: Topic = .modularAddition
-    @State private var tutorCooldown = false
-    @State private var tutorActive = false
-    @EnvironmentObject private var settings: AppSettings
-    @EnvironmentObject private var apiStatus: APIStatus
-
-    @ViewBuilder
-    private var modeControls: some View {
-        switch mode {
-        case .learn:
-            VStack(spacing: 16) {
-                NavigationLink { DiscreteMathIntroView() } label: {
-                    Label("Discrete Math Intro", systemImage: "book")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
-                NavigationLink { LearnTopicsView() } label: {
-                    Label("Start Learning", systemImage: "list.bullet.clipboard")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.mint)
-            }
-
-        case .quiz:
-            VStack(spacing: 16) {
-                Gauge(value: Double(count), in: 5...Double(QuestionGenerator.maxCount)) {
-                    Text("Number of Questions")
-                } currentValueLabel: {
-                    Text("\(count)")
-                }
-                .gaugeStyle(.accessoryCircularCapacity)
-                .frame(width: 120, height: 120)
-                Stepper("", value: $count, in: 5...QuestionGenerator.maxCount)
-                    .labelsHidden()
-                    .padding(.bottom, 8)
-                DisclosureGroup("Select Topics") {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(Topic.allCases) { t in
-                                Toggle(isOn: Binding(
-                                    get: { selectedTopics.contains(t) },
-                                    set: { isOn in
-                                        if isOn { selectedTopics.insert(t) }
-                                        else    { selectedTopics.remove(t) }
-                                    })
-                                ) { Text(t.title).multilineTextAlignment(.leading) }
-                                    .toggleStyle(.switch)
-                                    .tint(.cyan)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .frame(maxHeight: 220)
-                }
-                .padding()
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                NavigationLink(
-                    destination: DiscreteMathQuizView(
-                        count: count,
-                        topics: selectedTopics
-                    )
-                ) {
-                    Label("Start Quiz", systemImage: "play.circle.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.cyan)
-                .disabled(selectedTopics.isEmpty)
-            }
-
-        case .tutor:
-            VStack(spacing: 16) {
-                Picker("Topic", selection: $selectedTutorTopic) {
-                    ForEach(Topic.allCases) { t in Text(t.title).tag(t) }
-                }
-                .pickerStyle(.wheel)
-                .frame(height: 150)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                Button {
-                    guard !tutorCooldown else { return }
-                    tutorActive = true
-                    tutorCooldown = true
-                    DispatchQueue.main.asyncAfter(deadline: .now()+5) { tutorCooldown = false }
-                } label: {
-                    Label("Start Tutor Session", systemImage: "person.crop.circle.fill.badge.checkmark")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.mint)
-                .disabled(tutorCooldown || apiStatus.inProgress)
-                NavigationLink("", isActive: $tutorActive) {
-                    TutorSessionView(topic: selectedTutorTopic)
-                }
-            }
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Spacer()
-                Text("Python Programming Language Tutor")
-                    .font(.largeTitle.bold())
-                    .foregroundStyle(.white)
-                    .shadow(radius: 10)
-                Picker("Mode", selection: $mode) {
-                    Text("Learn").tag(Mode.learn)
-                    Text("Quiz").tag(Mode.quiz)
-                    Text("Tutor").tag(Mode.tutor)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                modeControls
-                Spacer()
-            }
-            .padding(.top, 4)
-            .padding()
-            .background(
-                AngularGradient(colors: [.indigo, .purple, .pink, .orange],
-                                center: .center)
-                    .opacity(0.4)
-                    .blur(radius: 120)
-                    .ignoresSafeArea()
-            )
-            .background(
-                LinearGradient(colors: [.black, .indigo],
-                               startPoint: .top,
-                               endPoint: .bottom)
-                    .ignoresSafeArea()
-            )
-            .safeAreaInset(edge: .bottom) {
-                if !settings.adsRemoved {
-                    VStack(spacing: 0) {
-                        PromoBanner()
-                            .onTapGesture {
-                                Task { try? await PurchaseManager.shared.purchaseRemoveAds() }
-                            }
-                        BannerAdView()
-                            .frame(height: 50)
-                    }
-                }
-            }
-        }
-        .preferredColorScheme(.dark)
-        .hideKeyboardOnTap()
-    }
-}
-
-// MARK: – Learning
-
-struct LearnTopicsView: View {
-    @State private var search = ""
-    private var list: [Topic] {
-        search.isEmpty ? Topic.allCases :
-            Topic.allCases.filter { $0.title.localizedCaseInsensitiveContains(search) }
-    }
-    var body: some View {
-        List(list) { t in NavigationLink(t.title) { TopicDetailView(topic: t) } }
-            .navigationTitle("Topics")
-            .searchable(text: $search)
-    }
-}
-
-private struct TopicDetailView: View {
-    let topic: Topic
-    var body: some View {
-        ScrollView { Text(topic.explanation).padding() }
-            .navigationTitle(topic.title)
-    }
-}
-
-// MARK: – Tutor Session (streaming)
-
-struct TutorSessionView: View {
-    let topic: Topic
-    @State private var input = ""
-    @State private var chat = [(String, Bool)]()
-    @State private var cooldown = false
-    @State private var didExplain = false
-    @EnvironmentObject private var apiStatus: APIStatus
-    private let synth = AVSpeechSynthesizer()
-
-    var body: some View {
-        ZStack {
-            VStack {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(Array(chat.enumerated()), id: \.offset) { i, msg in
-                                HStack {
-                                    if msg.1 { Spacer() }
-                                    Text(msg.0)
-                                        .padding(12)
-                                        .background(msg.1 ? .blue.opacity(0.3) : .gray.opacity(0.2))
-                                        .clipShape(.rect(cornerRadius: 12))
-                                    if !msg.1 { Spacer() }
-                                }
-                                .id(i)
-                            }
-                        }
-                        .padding(.horizontal)
-                        .onChange(of: chat.count) { _ in proxy.scrollTo(chat.count - 1) }
-                    }
-                }
-                HStack {
-                    TextField("Type a question", text: $input, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Send") { send() }
-                        .disabled(input.trimmed.isEmpty || cooldown || apiStatus.inProgress)
-                }
-                .padding()
-            }
-            APIProgressOverlay()
-        }
-        .navigationTitle("Tutor – \(topic.short)")
-        .task { if !didExplain { didExplain = true; await explain() } }
-        .hideKeyboardOnTap()
-    }
-
-    private func send() {
-        guard !cooldown && !apiStatus.inProgress else { return }
-        cooldown = true
-        let q = input.trimmed
-        chat.append((q, true))
-        input = ""
-        chat.append(("", false))
-        apiStatus.start()
-        Task {
-            var answer = ""
-            do {
-                try await OpenAIService.askStream(prompt: q, model: "o4-mini") { delta in
-                    answer += delta
-                    Task { @MainActor in chat[chat.count - 1].0 = answer } // <- fixed
-                }
-                synth.speak(AVSpeechUtterance(string: answer))
-            } catch {
-                await MainActor.run { chat[chat.count - 1].0 = "Error: \(error.localizedDescription)" }
-            }
-            apiStatus.stop()
-            cooldown = false
-        }
-    }
-
-    @MainActor
-    private func explain() async {
-        apiStatus.start()
-        chat.append(("", false))
-        var answer = ""
-        do {
-            try await OpenAIService.askStream(
-                prompt:
-                """
-                You are an expert Python tutor for the iOS app “Python Tutor”.
-                Provide the most in-depth, rigorous explanation possible of "\(topic.title)".
-                Include: a brief overview; precise definitions and notation; key theorems/lemmas with intuition and formal statements; step-by-step worked examples (at least 3, increasing difficulty); common pitfalls and misconceptions; practice exercises learners can do inside this app, with fully worked solutions; and a concise checklist summary.
-                Use clear section headings. Where helpful, present math using LaTeX-style notation. Do not be brief.
-                """,
-                model: "o4-mini"
-            ) { delta in
-                answer += delta
-                Task { @MainActor in chat[chat.count - 1].0 = answer }
-            }
-            synth.speak(AVSpeechUtterance(string: answer))
-            chat.append(("Ask me anything about \(topic.title)…", false))
-        } catch {
-            chat[chat.count - 1].0 = "Error: \(error.localizedDescription)"
-        }
-        apiStatus.stop()
-    }
-}
-
-// MARK: – AI Tutor (streaming)
-
-struct AITutorView: View {
-    @State private var prompt = ""
-    @State private var messages: [(String, Bool)] = []
-    @State private var model = "o4-mini"
-    @State private var cooldown = false
-    @EnvironmentObject private var apiStatus: APIStatus
-
-    var body: some View {
-        ZStack {
-            VStack {
-                Picker("Model", selection: $model) {
-                    Text("o4-mini").tag("o4-mini")
-                    Text("gpt-4.1").tag("gpt-4.1")
-                }
-                .pickerStyle(.segmented)
-                .padding()
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(messages.indices, id: \.self) { i in
-                            HStack {
-                                if messages[i].1 { Spacer() }
-                                Text(messages[i].0)
-                                    .padding(10)
-                                    .background(messages[i].1 ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3))
-                                    .cornerRadius(12)
-                                    .foregroundColor(.white)
-                                if !messages[i].1 { Spacer() }
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-                HStack {
-                    TextField("Ask something…", text: $prompt, axis:.vertical)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Send") { send() }
-                        .disabled(prompt.trimmed.isEmpty || cooldown || apiStatus.inProgress)
-                }
-                .padding()
-            }
-            APIProgressOverlay()
-        }
-        .navigationTitle("AI Tutor")
-        .background(LinearGradient(colors:[.indigo,.black], startPoint:.top, endPoint:.bottom).ignoresSafeArea())
-        .preferredColorScheme(.dark)
-        .hideKeyboardOnTap()
-    }
-    @MainActor
-    private func send() {
-        guard !cooldown && !apiStatus.inProgress else { return }
-        cooldown = true
-        apiStatus.start()
-        let q = prompt.trimmed
-        messages.append((q, true)); prompt = ""
-        messages.append(("", false))
-        let answerIndex = messages.count - 1
-
-        Task {
-            var answer = ""
-            do {
-                try await OpenAIService.askStream(prompt: q, model: model) { delta in
-                    answer += delta
-                    Task { @MainActor in
-                        messages[answerIndex].0 = answer
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    messages[answerIndex].0 = "Error: \(error.localizedDescription)"
-                }
-            }
-            await MainActor.run {
-                apiStatus.stop()
-                cooldown = false
-            }
-        }
-    }
-}
-
-// MARK: – OpenAI Service (stream support)
-
-struct OpenAIService {
-    static func ask(prompt: String, model: String) async throws -> String {
-        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.addValue("Bearer \(Credentials.openAIKey)", forHTTPHeaderField: "Authorization")
-        let body: [String: Any] = [
-            "model": model,
-            "messages": [
-                ["role": "user", "content": prompt]
-            ]
-        ]
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, _) = try await URLSession.shared.data(for: req)
-        guard
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let choices = json["choices"] as? [[String: Any]],
-            let message = choices.first?["message"] as? [String: Any],
-            let content = message["content"] as? String
-        else { return "No response" }
-        return content.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    static func askStream(
-        prompt: String,
-        model: String,
-        onUpdate: @escaping (String) -> Void
-    ) async throws {
-        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.addValue("Bearer \(Credentials.openAIKey)", forHTTPHeaderField: "Authorization")
-        let body: [String: Any] = [
-            "model": model,
-            "stream": true,
-            "messages": [
-                ["role": "user", "content": prompt]
-            ]
-        ]
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (bytes, _) = try await URLSession.shared.bytes(for: req)
-        for try await line in bytes.lines {
-            guard line.hasPrefix("data:") else { continue }
-            let payload = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
-            guard payload != "[DONE]",
-                  let data = payload.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String:Any],
-                  let choices = json["choices"] as? [[String:Any]],
-                  let delta = choices.first?["delta"] as? [String:Any],
-                  let content = delta["content"] as? String
-            else { continue }
-            onUpdate(content)
-        }
-    }
-}
-
-// MARK: – Stats & Achievements (unchanged)
-
-struct StatsView: View {
-    @Query(sort: \StoredItem.date) private var items: [StoredItem]
-    private var overallAccuracy: Double {
-        guard !items.isEmpty else { return 0 }
-        return items.map(\.accuracy).reduce(0, +) / Double(items.count)
-    }
-    private var daily: [(Date, Double)] {
-        Dictionary(grouping: items, by: { Calendar.current.startOfDay(for: $0.date) })
-            .map { (day, list) in (day, list.map(\.accuracy).reduce(0, +) / Double(list.count)) }
-            .sorted { $0.0 < $1.0 }
-    }
-    private var topicAcc: [(String, Double)] {
-        var dict: [String: (Int, Int)] = [:]
-        for item in items {
-            let topics = item.topicSummary.split(separator: ",").map(String.init)
-            for t in topics {
-                var (c, tot) = dict[t, default: (0, 0)]
-                c += item.correct
-                tot += item.total
-                dict[t] = (c, tot)
-            }
-        }
-        return dict.map { ($0.key, Double($0.value.0)/Double($0.value.1)) }
-            .sorted { $0.0 < $1.0 }
-    }
-    private var currentStreak: Int {
-        let days = Set(items.map { Calendar.current.startOfDay(for: $0.date) })
-        guard !days.isEmpty else { return 0 }
-        var streak = 0
-        var date = Calendar.current.startOfDay(for: Date())
-        while days.contains(date) {
-            streak += 1
-            date = Calendar.current.date(byAdding: .day, value: -1, to: date)!
-        }
-        return streak
-    }
-    private var longestStreak: Int {
-        let sorted = daily.map(\.0)
-        var longest = 0, current = 0, prev: Date?
-        for d in sorted {
-            if let p = prev, Calendar.current.date(byAdding: .day, value: 1, to: p) == d {
-                current += 1
-            } else { current = 1 }
-            longest = max(longest, current)
-            prev = d
-        }
-        return longest
-    }
-    var body: some View {
-        NavigationStack {
-            if items.isEmpty {
-                ContentUnavailableView("No Data Yet", systemImage: "chart.bar")
-            } else {
-                ScrollView {
-                    VStack(spacing: 24) {
-                        Gauge(value: overallAccuracy, in: 0...1) {
-                            Text("Overall Accuracy")
-                        }
-                        .gaugeStyle(.accessoryCircular)
-                        .frame(height: 160)
-                        Gauge(value: Double(currentStreak),
-                              in: 0...Double(max(currentStreak, longestStreak))) {
-                            Text("Current Streak")
-                        }
-                        .gaugeStyle(.accessoryCircular)
-                        .frame(height: 160)
-                        Chart {
-                            ForEach(daily, id: \.0) { d, v in
-                                LineMark(x: .value("Day", d), y: .value("Accuracy", v))
-                                    .interpolationMethod(.catmullRom)
-                                AreaMark(x: .value("Day", d), y: .value("Accuracy", v))
-                                    .foregroundStyle(.blue.opacity(0.2).gradient)
-                            }
-                        }
-                        .chartYScale(domain: 0...1)
-                        .frame(height: 240)
-                        Chart {
-                            ForEach(topicAcc, id:\.0) { t, v in
-                                BarMark(x: .value("Topic", t), y: .value("Accuracy", v))
-                            }
-                        }
-                        .chartYScale(domain: 0...1)
-                        .frame(height: 240)
-                    }
-                    .padding()
-                }
-                .navigationTitle("Progress")
-            }
-        }
-        .padding(.top, 4)
-    }
-}
-
-private struct Badge: Identifiable {
-    enum Metric { case correct, streak }
-    let id = UUID()
-    let title: String
-    let target: Int
-    let symbol: String
-    let metric: Metric
-    let gcID: String
-    func achieved(totalCorrect: Int, currentStreak: Int) -> Bool {
-        switch metric {
-        case .correct: return totalCorrect >= target
-        case .streak:  return currentStreak >= target
-        }
-    }
-}
-
-struct AchievementsView: View {
-    @Query private var items: [StoredItem]
-    @EnvironmentObject private var settings: AppSettings
-    private var totalCorrect: Int { items.map(\.correct).reduce(0, +) }
-    private var currentStreak: Int {
-        let days = Set(items.map { Calendar.current.startOfDay(for: $0.date) })
-        guard !days.isEmpty else { return 0 }
-        var streak = 0
-        var date = Calendar.current.startOfDay(for: Date())
-        while days.contains(date) {
-            streak += 1
-            date = Calendar.current.date(byAdding: .day, value: -1, to: date)!
-        }
-        return streak
-    }
-    private let badges: [Badge] = [
-        .init(title:"Rookie 50",   target:  50, symbol:"star",               metric:.correct, gcID:"rookie50"),
-        .init(title:"Pro 250",     target: 250, symbol:"star.lefthalf.fill", metric:.correct, gcID:"pro250"),
-        .init(title:"Legend 1000", target:1000, symbol:"rosette",           metric:.correct, gcID:"legend1000"),
-        .init(title:"Streak 7",    target:   7, symbol:"flame",             metric:.streak,  gcID:"streak7"),
-        .init(title:"Streak 30",   target:  30, symbol:"flame.fill",        metric:.streak,  gcID:"streak30")
-    ]
-    var body: some View {
-        NavigationStack {
-            List(badges) { b in
-                let progress = b.metric == .correct ? min(totalCorrect, b.target)
-                                                    : min(currentStreak, b.target)
-                HStack {
-                    Label(b.title, systemImage: b.symbol).foregroundStyle(
-                        b.achieved(totalCorrect: totalCorrect, currentStreak: currentStreak)
-                        ? .yellow : .secondary
-                    )
-                    Spacer()
-                    ProgressView(value: Double(progress),
-                                 total: Double(b.target))
-                        .frame(width: 120)
-                }
-                .onAppear {
-                    if b.achieved(totalCorrect: totalCorrect, currentStreak: currentStreak) &&
-                        !settings.unlockedBadges.contains(b.gcID) {
-                        settings.unlockedBadges.insert(b.gcID)
-                        GameCenterManager.report(id: b.gcID)
-                    }
-                }
-            }
-            .navigationTitle("Achievements")
-            .overlay { if items.isEmpty {
-                ContentUnavailableView("Finish a quiz to earn badges", systemImage: "rosette") } }
-        }
-        .padding(.top, 4)
-    }
-}
-
-// MARK: – Entry Point
-
-struct ContentView: View {
-    @StateObject private var settings = AppSettings()
-    @StateObject private var apiStatus = APIStatus()
-    @State private var tab: Tab = .home
-    private enum Tab { case home, intro, stats, badges, settings }
-
-    var body: some View {
-        VStack(spacing:0) {
-            TopNavBar()
-            TabView(selection: $tab) {
-                StartView()
-                    .tabItem { Label("Home", systemImage: "house") }
-                    .tag(Tab.home)
-                DiscreteMathIntroView()
-                    .tabItem { Label("Intro", systemImage: "book.closed") }
-                    .tag(Tab.intro)
-                StatsView()
-                    .tabItem { Label("Stats", systemImage: "chart.bar") }
-                    .tag(Tab.stats)
-                AchievementsView()
-                    .tabItem { Label("Badges", systemImage: "rosette") }
-                    .tag(Tab.badges)
-                SettingsView()
-                    .tabItem { Label("Settings", systemImage: "gearshape") }
-                    .tag(Tab.settings)
-            }
-        }
-        .environmentObject(settings)
-        .environmentObject(apiStatus)
-        .environmentObject(PurchaseManager.shared)
-        .onAppear { GameCenterManager.authenticate() }
-    }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: StoredItem.self, inMemory: true)
-}
-
-// MARK: – Helpers
-
-extension String { var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) } }
-extension QuestionGenerator {
-    static func generate(count: Int, from topics: Set<Topic>) -> [Question] {
-        guard !topics.isEmpty else { return [] }
-        return (0..<count).compactMap { _ in topics.randomElement()?.randomQuestion() }
-    }
-}
-extension UIApplication {
-    func hideKeyboard() {
-        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-}
-private struct HideKeyboardOnTap: ViewModifier {
-    func body(content: Content) -> some View {
-        content.simultaneousGesture(
-            TapGesture().onEnded { UIApplication.shared.hideKeyboard() }
-        )
-    }
-}
-extension View {
-    func hideKeyboardOnTap() -> some View { modifier(HideKeyboardOnTap()) }
-}
-//
-//  DiscreteMath.swift
-//  discrete_math_tutor
-//  Split 7/25/25 – Mixed types 7/26/25
-//
+//  Topics.swift
+//  Swift_programming_with_XCode_tutor
+//  Updated 7/26/25 – Expanded Swift & Xcode topics
 
 import Foundation
 import SwiftUI
 
-// MARK: - Topic catalogue
-
 enum Topic: String, CaseIterable, Hashable, Identifiable {
-    case modularAddition, modularMultiplication, modularExponentiation
-    case modularInverse, chineseRemainder, fermatLittle, eulerTotient
-    case subsetCount, permutationCount, combinationCount, combinationsWithRepetition
-    case catalanNumber, stirlingSecondKind, multinomialCoefficient, bellNumber
-    case completeGraphEdges, completeBipartiteEdges, degreeSum
-    case treeEdges, planarGraphEdgeBound, chromaticNumberComplete, hamiltonianCycle
-    case derangement, pigeonhole
-    case gcd, lcm
-    case inclusionExclusion, powerSet
-    case cartesianProduct, countableSet, contrapositiveLogic, deMorgan
-    case eulerCircuit
-    case arithmeticSeriesSum, geometricSeriesSum, triangularNumber, sumOfSquares
-    case hypercubeEdges, spanningTreesComplete, eulerFaces
-    case fibonacciNumber, binomialTheoremCoefficient, gridPaths, completeDirectedEdges
+    // Swift fundamentals
+    case variableKeyword, constantKeyword, optionals, closures, structsVsClasses, protocols
+    case generics, functions, enums, errorHandling, accessControl, memoryManagement
+    case extensionsFeature, properties, subscripts
+    // Advanced language
+    case concurrency, propertyWrappers, resultBuilders, actors, distributedActors, asyncLet, taskGroups
+    case macros, asyncSequence, patternMatching, typeInference
+    // Tooling & packages
+    case swiftPackageManager, docc, swiftUI
+    // Xcode
+    case xcodeProject, interfaceBuilder, xcodeDebugger, unitTesting, instruments, buildSettings
+    case sourceControl, signingCapabilities, previews, xcodeCloud, simulators
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .modularAddition:            return "Modular Addition"
-        case .modularMultiplication:      return "Modular Multiplication"
-        case .modularExponentiation:      return "Modular Exponentiation"
-        case .modularInverse:             return "Modular Inverse"
-        case .chineseRemainder:           return "Chinese Remainder Theorem"
-        case .fermatLittle:               return "Fermat's Little Theorem"
-        case .eulerTotient:               return "Euler's Totient Function"
-        case .subsetCount:                return "Subsets of a Set"
-        case .permutationCount:           return "Permutations"
-        case .combinationCount:           return "Combinations (no repetition)"
-        case .combinationsWithRepetition: return "Combinations (with repetition)"
-        case .catalanNumber:              return "Catalan Numbers"
-        case .stirlingSecondKind:         return "Stirling Numbers (2nd Kind)"
-        case .multinomialCoefficient:     return "Multinomial Coefficient"
-        case .bellNumber:                 return "Bell Numbers"
-        case .completeGraphEdges:         return "Edges in a Complete Graph"
-        case .completeBipartiteEdges:     return "Edges in a Complete Bipartite Graph"
-        case .degreeSum:                  return "Handshaking Lemma"
-        case .treeEdges:                  return "Edges in a Tree"
-        case .planarGraphEdgeBound:       return "Planar Graph Edge Bound"
-        case .chromaticNumberComplete:    return "Chromatic Number of Kₙ"
-        case .hamiltonianCycle:           return "Hamiltonian Cycle in Kₙ"
-        case .derangement:                return "Derangements"
-        case .pigeonhole:                 return "Pigeonhole Principle"
-        case .gcd:                        return "Greatest Common Divisor"
-        case .lcm:                        return "Least Common Multiple"
-        case .inclusionExclusion:         return "Inclusion–Exclusion"
-        case .powerSet:                   return "Power-set Cardinality"
-        case .cartesianProduct:           return "Cartesian Product Size"
-        case .countableSet:               return "Countability"
-        case .contrapositiveLogic:        return "Contrapositive"
-        case .deMorgan:                   return "De Morgan's Law"
-        case .eulerCircuit:               return "Euler Circuit in Kₙ"
-        case .arithmeticSeriesSum:        return "Arithmetic Series Sum"
-        case .geometricSeriesSum:         return "Geometric Series Sum"
-        case .triangularNumber:           return "Triangular Numbers"
-        case .sumOfSquares:               return "Sum of Squares Formula"
-        case .hypercubeEdges:             return "Edges in a Hypercube"
-        case .spanningTreesComplete:      return "Spanning Trees of Kₙ"
-        case .eulerFaces:                 return "Faces via Euler's Formula"
-        case .fibonacciNumber:            return "Fibonacci Numbers"
-        case .binomialTheoremCoefficient: return "Binomial Theorem Coefficient"
-        case .gridPaths:                  return "Grid Lattice Paths"
-        case .completeDirectedEdges:      return "Arcs in Complete Digraph"
+        case .variableKeyword:       return "Variables"
+        case .constantKeyword:       return "Constants"
+        case .optionals:             return "Optionals"
+        case .closures:              return "Closures"
+        case .structsVsClasses:      return "Structs vs Classes"
+        case .protocols:             return "Protocols"
+        case .generics:              return "Generics"
+        case .functions:             return "Functions"
+        case .enums:                 return "Enums"
+        case .errorHandling:         return "Error Handling"
+        case .accessControl:         return "Access Control"
+        case .memoryManagement:      return "Memory Management"
+        case .extensionsFeature:     return "Extensions"
+        case .properties:            return "Properties"
+        case .subscripts:            return "Subscripts"
+        case .concurrency:           return "Concurrency"
+        case .propertyWrappers:      return "Property Wrappers"
+        case .resultBuilders:        return "Result Builders"
+        case .actors:                return "Actors"
+        case .distributedActors:     return "Distributed Actors"
+        case .asyncLet:              return "async let"
+        case .taskGroups:            return "Task Groups"
+        case .macros:                return "Macros"
+        case .asyncSequence:         return "AsyncSequence"
+        case .patternMatching:       return "Pattern Matching"
+        case .typeInference:         return "Type Inference"
+        case .swiftPackageManager:   return "Swift Package Manager"
+        case .docc:                  return "DocC"
+        case .swiftUI:               return "SwiftUI"
+        case .xcodeProject:          return "Xcode Project"
+        case .interfaceBuilder:      return "Interface Builder"
+        case .xcodeDebugger:         return "Xcode Debugger"
+        case .unitTesting:           return "Unit Testing"
+        case .instruments:           return "Instruments"
+        case .buildSettings:         return "Build Settings"
+        case .sourceControl:         return "Source Control"
+        case .signingCapabilities:   return "Signing & Capabilities"
+        case .previews:              return "Previews"
+        case .xcodeCloud:            return "Xcode Cloud"
+        case .simulators:            return "Simulators"
         }
     }
 }
 
-// MARK: - Topic explanations
+extension Topic { static var modularAddition: Topic { .variableKeyword } }
 
 struct TopicExplanations {
     private static let map: [Topic: String] = [
-        .modularAddition: "**Modular addition** in ℤₘ: (a + b) mod m = ((a mod m)+(b mod m)) mod m.",
-        .modularMultiplication: "**Modular multiplication** multiplies then reduces the product in ℤₘ.",
-        .modularExponentiation: "**Modular exponentiation** computes aᵉ mod m efficiently via repeated squaring.",
-        .modularInverse: "The **modular inverse** of a in ℤₘ is x with ax ≡ 1 (mod m) when gcd(a,m)=1.",
-        .chineseRemainder: "**Chinese Remainder Theorem**: for coprime m₁,m₂ there is a unique x (mod m₁m₂) solving both congruences.",
-        .fermatLittle: "For prime p and a ≢ 0 (mod p), a^{p−1} ≡ 1 (mod p).",
-        .eulerTotient: "ϕ(n) counts 1 ≤ k ≤ n coprime to n; if n=∏pᵢ^{eᵢ}, then ϕ(n)=∏pᵢ^{eᵢ−1}(pᵢ−1).",
-        .subsetCount: "A set of size n has 2ⁿ subsets.",
-        .permutationCount: "P(n,k)=n!/(n−k)! counts ordered selections.",
-        .combinationCount: "C(n,k)=n!/(k!(n−k)!) counts unordered selections.",
-        .combinationsWithRepetition: "Selections with repetition: C(n+k−1,k).",
-        .catalanNumber: "Catalan Cₙ = (2n choose n)/(n+1) enumerates Dyck paths, BSTs, etc.",
-        .stirlingSecondKind: "{n brace k} partitions n distinct items into k non-empty blocks.",
-        .multinomialCoefficient: "Multinomial coefficient n!/(k₁!…k_r!) generalises binomials; Σkᵢ=n.",
-        .bellNumber: "Bell Bₙ = Σ_{k} {n brace k} counts set partitions of n elements.",
-        .completeGraphEdges: "Kₙ has n(n−1)/2 edges.",
-        .completeBipartiteEdges: "K_{m,n} has m·n edges.",
-        .degreeSum: "In any graph Σ deg(v) = 2|E|.",
-        .treeEdges: "A tree with n vertices has n−1 edges.",
-        .planarGraphEdgeBound: "For n≥3, simple planar graphs satisfy |E| ≤ 3n−6.",
-        .chromaticNumberComplete: "χ(Kₙ)=n.",
-        .hamiltonianCycle: "Kₙ is Hamiltonian iff n ≥ 3.",
-        .derangement: "Number of derangements !n = ⌊n!/e+½⌋.",
-        .pigeonhole: "With (k−1)m+1 objects in m boxes, some box holds ≥k objects.",
-        .gcd: "Euclidean algorithm finds gcd(a,b).",
-        .lcm: "lcm(a,b)=ab/gcd(a,b).",
-        .inclusionExclusion: "|A∪B|=|A|+|B|−|A∩B| (generalises to many sets).",
-        .powerSet: "|℘(X)|=2^{|X|}.",
-        .cartesianProduct: "|A×B|=|A||B|.",
-        .countableSet: "ℤ, ℚ, and ℕᵏ are countable; ℝ is not.",
-        .contrapositiveLogic: "P→Q ≡ ¬Q→¬P.",
-        .deMorgan: "¬(A∩B)=¬A∪¬B and ¬(A∪B)=¬A∩¬B.",
-        .eulerCircuit: "A connected graph has an Euler circuit iff all vertex degrees are even.",
-        .arithmeticSeriesSum: "Arithmetic series: Sₙ=n/2·(2a₁+(n−1)d).",
-        .geometricSeriesSum: "Geometric series (r≠1): Sₙ=a(rⁿ−1)/(r−1).",
-        .triangularNumber: "Tₙ = n(n+1)/2.",
-        .sumOfSquares: "Σ_{i=1}^{n} i² = n(n+1)(2n+1)/6.",
-        .hypercubeEdges: "n-cube Qₙ has n·2^{n−1} edges.",
-        .spanningTreesComplete: "Kₙ has n^{n−2} spanning trees (Cayley).",
-        .eulerFaces: "For connected planar graphs n−e+f=2.",
-        .fibonacciNumber: "F₀=0,F₁=1, Fₙ=Fₙ₋₁+Fₙ₋₂.",
-        .binomialTheoremCoefficient: "Coeff. of xᵏ in (1+x)ⁿ is C(n,k).",
-        .gridPaths: "Lattice paths in m×n grid: C(m+n,n).",
-        .completeDirectedEdges: "Complete digraph on n vertices (no loops) has n(n−1) arcs."
+        .variableKeyword:       "**Variables** are declared with `var` and are mutable.",
+        .constantKeyword:       "**Constants** are declared with `let` and are immutable.",
+        .optionals:             "**Optionals** (`?`) allow a value to be either a type or `nil`; they must be safely unwrapped.",
+        .closures:              "**Closures** are self-contained blocks of functionality that capture context.",
+        .structsVsClasses:      "**Structs** are value types; **classes** are reference types and support inheritance.",
+        .protocols:             "**Protocols** define a blueprint of methods/properties that adopting types must implement.",
+        .generics:              "**Generics** let you write flexible, reusable code that works with any type.",
+        .functions:             "**Functions** declare reusable code blocks with `func`.",
+        .enums:                 "**Enums** group related cases into a single type.",
+        .errorHandling:         "**Error handling** uses `throw`, `throws`, `try`, and `catch`.",
+        .accessControl:         "**Access control** (`open`, `public`, `internal`, `fileprivate`, `private`) controls visibility.",
+        .memoryManagement:      "**ARC** automatically manages memory via reference counts.",
+        .extensionsFeature:     "**Extensions** add functionality to existing types without subclassing.",
+        .properties:            "**Properties** store and compute values; they can be stored or computed.",
+        .subscripts:            "**Subscripts** provide shortcut access to collections or custom indexed types.",
+        .concurrency:           "**Concurrency** in Swift uses `async`, `await`, actors, and structured tasks.",
+        .propertyWrappers:      "**Property wrappers** (`@propertyWrapper`) encapsulate logic for getting/setting values.",
+        .resultBuilders:        "**Result builders** enable DSL-style declarative syntax (e.g., SwiftUI).",
+        .actors:                "**Actors** are reference types that protect mutable state across concurrency domains.",
+        .distributedActors:     "**Distributed actors** enable actor isolation across process or network boundaries.",
+        .asyncLet:              "**`async let`** launches concurrent child tasks and awaits their results.",
+        .taskGroups:            "**Task groups** create dynamic hierarchies of child tasks with error aggregation.",
+        .macros:                "**Macros** perform compile-time code generation and transformations.",
+        .asyncSequence:         "**AsyncSequence** produces values asynchronously over time with `for await`.",
+        .patternMatching:       "**Pattern matching** (`switch`, `if case`, `guard`) destructures and tests values.",
+        .typeInference:         "**Type inference** lets the compiler deduce types, reducing verbosity.",
+        .swiftPackageManager:   "**Swift Package Manager** (`swift package`, `Package.swift`) manages dependencies and build.",
+        .docc:                  "**DocC** generates API documentation from source-level comments and bundles.",
+        .swiftUI:               "**SwiftUI** uses a declarative `View` protocol to build UI across Apple platforms.",
+        .xcodeProject:          "**Xcode projects** organize code into targets, schemes, and builds.",
+        .interfaceBuilder:      "**Interface Builder** lets you design UI visually (storyboards, XIBs, SwiftUI previews).",
+        .xcodeDebugger:         "**Xcode debugger** uses breakpoints and LLDB commands to inspect runtime state.",
+        .unitTesting:           "**Unit testing** leverages the `XCTest` framework for assertions and performance tests.",
+        .instruments:           "**Instruments** profiles CPU, memory, energy, and more.",
+        .buildSettings:         "**Build settings** configure compiler and linker options per target.",
+        .sourceControl:         "**Source Control Navigator** integrates Git operations within Xcode.",
+        .signingCapabilities:   "**Signing & Capabilities** configures code signing identities and entitlements.",
+        .previews:              "**Previews** render SwiftUI views live using `@PreviewProvider`.",
+        .xcodeCloud:            "**Xcode Cloud** provides CI/CD pipelines tightly integrated with Xcode and App Store Connect.",
+        .simulators:            "**Simulators** emulate Apple devices for testing apps within Xcode."
     ]
-
-    static func text(for topic: Topic) -> String { map[topic] ?? "" }
+    static func text(for t: Topic) -> String { map[t] ?? "" }
 }
 
-// MARK: - Question models
-
+// The remaining structs and extensions are unchanged.
 struct DiscreteMathQuestion: Identifiable, Hashable {
     var id = UUID()
     let question: String
@@ -950,724 +131,314 @@ struct Question: Identifiable, Hashable {
     let answer: String
 }
 
-// MARK: - Mixed question wrapper
-
 enum QuizQuestion: Identifiable, Hashable {
     case multiple(DiscreteMathQuestion)
     case submit(Question)
-
-    var id: UUID {
-        switch self {
-        case .multiple(let q): return q.id
-        case .submit(let q):   return q.id
-        }
-    }
-
-    var prompt: String {
-        switch self {
-        case .multiple(let q): return q.question
-        case .submit(let q):   return q.prompt
-        }
-    }
-
-    var isMultipleChoice: Bool {
-        if case .multiple = self { return true } else { return false }
-    }
-
-    var options: [String]? {
-        switch self {
-        case .multiple(let q): return q.answers
-        case .submit:          return nil
-        }
-    }
-
-    var solution: String {
-        switch self {
-        case .multiple(let q): return q.answers[q.correctAnswerIndex]
-        case .submit(let q):   return q.answer
-        }
-    }
+    var id: UUID { switch self { case .multiple(let q): q.id; case .submit(let q): q.id } }
+    var prompt: String { switch self { case .multiple(let q): q.question; case .submit(let q): q.prompt } }
+    var isMultipleChoice: Bool { if case .multiple = self { true } else { false } }
+    var options: [String]? { if case .multiple(let q) = self { q.answers } else { nil } }
+    var solution: String { switch self {
+        case .multiple(let q): q.answers[q.correctAnswerIndex]
+        case .submit(let q):   q.answer } }
 }
-
-// MARK: - Topic→question mapping
 
 extension Topic {
     func generated() -> DiscreteMathQuestion {
         switch self {
-        case .modularAddition:            return QuestionGenerator.modularAddition()
-        case .modularMultiplication:      return QuestionGenerator.modularMultiplication()
-        case .modularExponentiation:      return QuestionGenerator.modularExponentiation()
-        case .modularInverse:             return QuestionGenerator.modularInverseQuestion()
-        case .chineseRemainder:           return QuestionGenerator.chineseRemainderQuestion()
-        case .fermatLittle:               return QuestionGenerator.fermatLittleQuestion()
-        case .eulerTotient:               return QuestionGenerator.eulerTotientQuestion()
-        case .subsetCount:                return QuestionGenerator.subsetCount()
-        case .permutationCount:           return QuestionGenerator.permutationCount()
-        case .combinationCount:           return QuestionGenerator.combinationCount()
-        case .combinationsWithRepetition: return QuestionGenerator.combinationsWithRepetitionQuestion()
-        case .catalanNumber:              return QuestionGenerator.catalanNumberQuestion()
-        case .stirlingSecondKind:         return QuestionGenerator.stirlingSecondKindQuestion()
-        case .multinomialCoefficient:     return QuestionGenerator.multinomialCoefficientQuestion()
-        case .bellNumber:                 return QuestionGenerator.bellNumberQuestion()
-        case .completeGraphEdges:         return QuestionGenerator.completeGraphEdges()
-        case .completeBipartiteEdges:     return QuestionGenerator.completeBipartiteEdgesQuestion()
-        case .degreeSum:                  return QuestionGenerator.degreeSum()
-        case .treeEdges:                  return QuestionGenerator.treeEdgesQuestion()
-        case .planarGraphEdgeBound:       return QuestionGenerator.planarGraphEdgeBoundQuestion()
-        case .chromaticNumberComplete:    return QuestionGenerator.chromaticNumberCompleteQuestion()
-        case .hamiltonianCycle:           return QuestionGenerator.hamiltonianCycleQuestion()
-        case .derangement:                return QuestionGenerator.derangementQuestion()
-        case .pigeonhole:                 return QuestionGenerator.pigeonholeQuestion()
-        case .gcd:                        return QuestionGenerator.gcdQuestion()
-        case .lcm:                        return QuestionGenerator.lcmQuestion()
-        case .inclusionExclusion:         return QuestionGenerator.inclusionExclusion()
-        case .powerSet:                   return QuestionGenerator.powerSetCardinality()
-        case .cartesianProduct:           return QuestionGenerator.cartesianProductQuestion()
-        case .countableSet:               return QuestionGenerator.countableSet()
-        case .contrapositiveLogic:        return QuestionGenerator.contrapositiveLogic()
-        case .deMorgan:                   return QuestionGenerator.deMorganQuestion()
-        case .eulerCircuit:               return QuestionGenerator.eulerCircuitQuestion()
-        case .arithmeticSeriesSum:        return QuestionGenerator.arithmeticSeriesSumQuestion()
-        case .geometricSeriesSum:         return QuestionGenerator.geometricSeriesSumQuestion()
-        case .triangularNumber:           return QuestionGenerator.triangularNumberQuestion()
-        case .sumOfSquares:               return QuestionGenerator.sumOfSquaresQuestion()
-        case .hypercubeEdges:             return QuestionGenerator.hypercubeEdgesQuestion()
-        case .spanningTreesComplete:      return QuestionGenerator.spanningTreesCompleteQuestion()
-        case .eulerFaces:                 return QuestionGenerator.eulerPlanarFacesQuestion()
-        case .fibonacciNumber:            return QuestionGenerator.fibonacciNumberQuestion()
-        case .binomialTheoremCoefficient: return QuestionGenerator.binomialTheoremCoefficientQuestion()
-        case .gridPaths:                  return QuestionGenerator.gridPathsQuestion()
-        case .completeDirectedEdges:      return QuestionGenerator.completeDirectedEdgesQuestion()
+        case .variableKeyword:       return QuestionGenerator.variableKeywordQuestion()
+        case .constantKeyword:       return QuestionGenerator.constantKeywordQuestion()
+        case .optionals:             return QuestionGenerator.optionalsQuestion()
+        case .closures:              return QuestionGenerator.closuresQuestion()
+        case .structsVsClasses:      return QuestionGenerator.structsVsClassesQuestion()
+        case .protocols:             return QuestionGenerator.protocolsQuestion()
+        case .generics:              return QuestionGenerator.genericsQuestion()
+        case .functions:             return QuestionGenerator.functionsQuestion()
+        case .enums:                 return QuestionGenerator.enumsQuestion()
+        case .errorHandling:         return QuestionGenerator.errorHandlingQuestion()
+        case .accessControl:         return QuestionGenerator.accessControlQuestion()
+        case .memoryManagement:      return QuestionGenerator.memoryManagementQuestion()
+        case .extensionsFeature:     return QuestionGenerator.extensionsFeatureQuestion()
+        case .properties:            return QuestionGenerator.propertiesQuestion()
+        case .subscripts:            return QuestionGenerator.subscriptsQuestion()
+        case .concurrency:           return QuestionGenerator.concurrencyQuestion()
+        case .propertyWrappers:      return QuestionGenerator.propertyWrappersQuestion()
+        case .resultBuilders:        return QuestionGenerator.resultBuildersQuestion()
+        case .actors:                return QuestionGenerator.actorsQuestion()
+        case .distributedActors:     return QuestionGenerator.distributedActorsQuestion()
+        case .asyncLet:              return QuestionGenerator.asyncLetQuestion()
+        case .taskGroups:            return QuestionGenerator.taskGroupsQuestion()
+        case .macros:                return QuestionGenerator.macrosQuestion()
+        case .asyncSequence:         return QuestionGenerator.asyncSequenceQuestion()
+        case .patternMatching:       return QuestionGenerator.patternMatchingQuestion()
+        case .typeInference:         return QuestionGenerator.typeInferenceQuestion()
+        case .swiftPackageManager:   return QuestionGenerator.swiftPackageManagerQuestion()
+        case .docc:                  return QuestionGenerator.doccQuestion()
+        case .swiftUI:               return QuestionGenerator.swiftUIQuestion()
+        case .xcodeProject:          return QuestionGenerator.xcodeProjectQuestion()
+        case .interfaceBuilder:      return QuestionGenerator.interfaceBuilderQuestion()
+        case .xcodeDebugger:         return QuestionGenerator.xcodeDebuggerQuestion()
+        case .unitTesting:           return QuestionGenerator.unitTestingQuestion()
+        case .instruments:           return QuestionGenerator.instrumentsQuestion()
+        case .buildSettings:         return QuestionGenerator.buildSettingsQuestion()
+        case .sourceControl:         return QuestionGenerator.sourceControlQuestion()
+        case .signingCapabilities:   return QuestionGenerator.signingCapabilitiesQuestion()
+        case .previews:              return QuestionGenerator.previewsQuestion()
+        case .xcodeCloud:            return QuestionGenerator.xcodeCloudQuestion()
+        case .simulators:            return QuestionGenerator.simulatorsQuestion()
         }
     }
-
-    /// Previously-used submit-answer generator kept for compatibility.
     func randomQuestion() -> Question {
         let q = generated()
         return Question(prompt: q.question, answer: q.answers[q.correctAnswerIndex])
     }
-
-    /// New mixed generator.
     func mixedQuestion() -> QuizQuestion {
-        let base = generated()
-        return Bool.random()
-            ? .multiple(base)
-            : .submit(Question(prompt: base.question, answer: base.answers[base.correctAnswerIndex]))
+        Bool.random() ? .multiple(generated()) : .submit(randomQuestion())
     }
-
     var explanation: String { TopicExplanations.text(for: self) }
     var short: String { String(title.prefix(12)) }
     func answer(for _: String) -> String { "\(explanation)\n\n(For full details, ask about a concrete example.)" }
 }
 
-// MARK: - Convenience batch creation
-
 struct QuizFactory {
     static func generate(count: Int = 20) -> [QuizQuestion] {
         var out: [QuizQuestion] = []
         var topics = Topic.allCases.shuffled()
-
         while out.count < count {
             if topics.isEmpty { topics = Topic.allCases.shuffled() }
-            let t = topics.removeFirst()
-            out.append(t.mixedQuestion())
+            out.append(topics.removeFirst().mixedQuestion())
         }
         return out.shuffled()
     }
 }
-//
+
 //  QuestionGenerator.swift
-//  discrete_math_tutor
-//  Updated 7/26/25 – multiple-choice only, no public API change
-//
+//  Swift_programming_with_XCode_tutor
+//  Updated 7/26/25 – Expanded Swift & Xcode questions
 
 import Foundation
 
 enum QuestionGenerator {
+    static let maxCount = 200
 
-    static let maxCount: Int = 50
-
-    // MARK: Helpers
-
-    private static func makeOptions(correct: Int, span: Int = 15) -> ([String], Int) {
-        var s: Set<Int> = [correct]
-        while s.count < 4 {
-            let d = Int.random(in: 1...max(1, span))
-            s.insert(Bool.random() ? correct + d : max(0, correct - d))
-        }
-        let a = Array(s).shuffled()
-        return (a.map(String.init), a.firstIndex(of: correct)!)
-    }
-
-    private static func fact(_ x: Int) -> Int { (1...max(1, x)).reduce(1, *) }
-
-    private static func intPow(_ b: Int, _ e: Int) -> Int {
-        (0..<e).reduce(1) { acc, _ in acc * b }
-    }
-
-    private static func gcd(_ a: Int, _ b: Int) -> Int {
-        var x = a, y = b
-        while y != 0 { (x, y) = (y, x % y) }
-        return x
-    }
-
-    private static func modInverse(_ a: Int, _ m: Int) -> Int {
-        var (t, newT) = (0, 1), (r, newR) = (m, a)
-        while newR != 0 {
-            let q = r / newR
-            (t, newT) = (newT, t - q * newT)
-            (r, newR) = (newR, r - q * newR)
-        }
-        return (t % m + m) % m
-    }
-
-    // MARK: Arithmetic & number theory
-
-    static func modularAddition() -> DiscreteMathQuestion {
-        let a = Int.random(in: 10...99), b = Int.random(in: 10...99), m = Int.random(in: 7...25)
-        let c = (a + b) % m
-        let (ans, idx) = makeOptions(correct: c, span: m)
-        return DiscreteMathQuestion(
-            question: "Compute ( \(a)+\(b) ) mod \(m).",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(a)+\(b)=\(a+b); (\(a+b)) mod \(m)=\(c).",
-            topic: .modularAddition)
-    }
-
-    static func modularMultiplication() -> DiscreteMathQuestion {
-        let a = Int.random(in: 3...20), b = Int.random(in: 3...20), m = Int.random(in: 5...25)
-        let c = (a * b) % m
-        let (ans, idx) = makeOptions(correct: c, span: m)
-        return DiscreteMathQuestion(
-            question: "Compute ( \(a)×\(b) ) mod \(m).",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(a)×\(b)=\(a*b); (\(a*b)) mod \(m)=\(c).",
-            topic: .modularMultiplication)
-    }
-
-    static func modularExponentiation() -> DiscreteMathQuestion {
-        let a = Int.random(in: 2...10), e = Int.random(in: 3...10), m = Int.random(in: 6...23)
-        var r = 1
-        for _ in 0..<e { r = (r * a) % m }
-        let (ans, idx) = makeOptions(correct: r, span: m)
-        return DiscreteMathQuestion(
-            question: "Compute \(a)^\(e) mod \(m).",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "Repeated squaring ⇒ \(r).",
-            topic: .modularExponentiation)
-    }
-
-    static func modularInverseQuestion() -> DiscreteMathQuestion {
-        let m = [7, 9, 11, 13, 17, 19, 23].randomElement()!
-        var a = Int.random(in: 2..<m)
-        while gcd(a, m) != 1 { a = Int.random(in: 2..<m) }
-        let inv = modInverse(a, m)
-        let (ans, idx) = makeOptions(correct: inv, span: m)
-        return DiscreteMathQuestion(
-            question: "Multiplicative inverse of \(a) mod \(m)?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(a)×\(inv) ≡ 1 (mod \(m)).",
-            topic: .modularInverse)
-    }
-
-    static func chineseRemainderQuestion() -> DiscreteMathQuestion {
-        let m1 = [3, 4, 5, 7, 8, 11].randomElement()!
-        let m2 = [3, 4, 5, 7, 8, 11].filter { gcd($0, m1) == 1 }.randomElement()!
-        let modulus = m1 * m2
-        let x0 = Int.random(in: 0..<modulus)
-        let (a1, a2) = (x0 % m1, x0 % m2)
-        let (ans, idx) = makeOptions(correct: x0, span: modulus)
-        return DiscreteMathQuestion(
-            question: "Smallest x with x ≡ \(a1) (mod \(m1)), x ≡ \(a2) (mod \(m2))?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "CRT ⇒ x ≡ \(x0) (mod \(modulus)).",
-            topic: .chineseRemainder)
-    }
-
-    static func fermatLittleQuestion() -> DiscreteMathQuestion {
-        let p = [5, 7, 11, 13, 17, 19, 23].randomElement()!
-        let a = Int.random(in: 1..<p)
-        let (ans, idx) = makeOptions(correct: 1, span: p)
-        return DiscreteMathQuestion(
-            question: "Compute \(a)^\(p-1) mod \(p).",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "Fermat ⇒ 1.",
-            topic: .fermatLittle)
-    }
-
-    static func eulerTotientQuestion() -> DiscreteMathQuestion {
-        var p = [2, 3, 5, 7, 11, 13].randomElement()!
-        var q = [2, 3, 5, 7, 11, 13].randomElement()!
-        while p == q { q = [2, 3, 5, 7, 11, 13].randomElement()! }
-        let n = p * q, phi = (p - 1) * (q - 1)
-        let (ans, idx) = makeOptions(correct: phi, span: phi)
-        return DiscreteMathQuestion(
-            question: "ϕ(\(n)) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "(\(p)-1)(\(q)-1)=\(phi).",
-            topic: .eulerTotient)
-    }
-
-    static func gcdQuestion() -> DiscreteMathQuestion {
-        let a = Int.random(in: 40...120), b = Int.random(in: 30...100)
-        let c = gcd(a, b)
-        let (ans, idx) = makeOptions(correct: c, span: 20)
-        return DiscreteMathQuestion(
-            question: "gcd(\(a),\(b)) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "Euclid ⇒ \(c).",
-            topic: .gcd)
-    }
-
-    static func lcmQuestion() -> DiscreteMathQuestion {
-        let a = Int.random(in: 20...60), b = Int.random(in: 20...60)
-        let l = a / gcd(a, b) * b
-        let (ans, idx) = makeOptions(correct: l, span: 60)
-        return DiscreteMathQuestion(
-            question: "lcm(\(a),\(b)) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "ab/gcd = \(l).",
-            topic: .lcm)
-    }
-
-    // MARK: Series & sums
-
-    static func arithmeticSeriesSumQuestion() -> DiscreteMathQuestion {
-        let a1 = Int.random(in: 1...5), d = Int.random(in: 1...5), n = Int.random(in: 4...10)
-        let sum = n * (2 * a1 + (n - 1) * d) / 2
-        let (ans, idx) = makeOptions(correct: sum, span: sum / 2 + 5)
-        return DiscreteMathQuestion(
-            question: "Sum of first \(n) terms of \(a1), \(a1+d), … ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "Sₙ = \(sum).",
-            topic: .arithmeticSeriesSum)
-    }
-
-    static func geometricSeriesSumQuestion() -> DiscreteMathQuestion {
-        let a = Int.random(in: 1...3), r = Int.random(in: 2...3), n = Int.random(in: 4...6)
-        let sum = a * (intPow(r, n) - 1) / (r - 1)
-        let (ans, idx) = makeOptions(correct: sum, span: sum / 2 + 5)
-        return DiscreteMathQuestion(
-            question: "Sum of first \(n) terms of \(a), \(a*r), … ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "Sₙ = \(sum).",
-            topic: .geometricSeriesSum)
-    }
-
-    static func triangularNumberQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 5...20), t = n * (n + 1) / 2
-        let (ans, idx) = makeOptions(correct: t, span: t / 2 + 5)
-        return DiscreteMathQuestion(
-            question: "T_\(n) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(n)(\(n)+1)/2 = \(t).",
-            topic: .triangularNumber)
-    }
-
-    static func sumOfSquaresQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 4...12)
-        let s = n * (n + 1) * (2 * n + 1) / 6
-        let (ans, idx) = makeOptions(correct: s, span: s / 3 + 10)
-        return DiscreteMathQuestion(
-            question: "Σ i² for i=1…\(n) =",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(s).",
-            topic: .sumOfSquares)
-    }
-
-    // MARK: Counting & combinatorics
-
-    static func subsetCount() -> DiscreteMathQuestion {
-        let n = Int.random(in: 3...10), c = 1 << n
-        let (ans, idx) = makeOptions(correct: c, span: 64)
-        return DiscreteMathQuestion(
-            question: "A set with \(n) elements has how many subsets?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "2^\(n)=\(c).",
-            topic: .subsetCount)
-    }
-
-    static func permutationCount() -> DiscreteMathQuestion {
-        let n = Int.random(in: 5...8), k = Int.random(in: 2..<n)
-        let c = fact(n) / fact(n - k)
-        let (ans, idx) = makeOptions(correct: c, span: c / 2)
-        return DiscreteMathQuestion(
-            question: "Arrange \(k) of \(n) distinct objects:",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "P(\(n),\(k))=\(c).",
-            topic: .permutationCount)
-    }
-
-    static func combinationCount() -> DiscreteMathQuestion {
-        let n = Int.random(in: 6...12), k = Int.random(in: 2..<(n - 1))
-        let c = fact(n) / (fact(k) * fact(n - k))
-        let (ans, idx) = makeOptions(correct: c, span: c / 2)
-        return DiscreteMathQuestion(
-            question: "C(\(n),\(k)) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .combinationCount)
-    }
-
-    static func combinationsWithRepetitionQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 4...9), k = Int.random(in: 2...5)
-        let c = fact(n + k - 1) / (fact(k) * fact(n - 1))
-        let (ans, idx) = makeOptions(correct: c, span: c / 2)
-        return DiscreteMathQuestion(
-            question: "Multisets of size \(k) from \(n) types?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .combinationsWithRepetition)
-    }
-
-    static func multinomialCoefficientQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 6...9)
-        let k1 = Int.random(in: 1..<(n - 2))
-        let k2 = Int.random(in: 1..<(n - k1 - 1))
-        let k3 = n - k1 - k2
-        let c = fact(n) / (fact(k1) * fact(k2) * fact(k3))
-        let (ans, idx) = makeOptions(correct: c, span: c / 3 + 10)
-        return DiscreteMathQuestion(
-            question: "Coeff. of x^{\(k1)}y^{\(k2)}z^{\(k3)} in (x+y+z)^\(n):",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "n!/k₁!k₂!k₃! = \(c).",
-            topic: .multinomialCoefficient)
-    }
-
-    static func bellNumberQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 3...6)
-        let bell = [0: 1, 1: 1, 2: 2, 3: 5, 4: 15, 5: 52, 6: 203][n]!
-        let (ans, idx) = makeOptions(correct: bell, span: bell / 2 + 5)
-        return DiscreteMathQuestion(
-            question: "Bell number B_\(n) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "Partitions count ⇒ \(bell).",
-            topic: .bellNumber)
-    }
-
-    static func catalanNumberQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 3...6)
-        let c = fact(2 * n) / (fact(n + 1) * fact(n))
-        let (ans, idx) = makeOptions(correct: c, span: c / 2 + 2)
-        return DiscreteMathQuestion(
-            question: "Catalan C_\(n) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .catalanNumber)
-    }
-
-    static func stirlingSecondKindQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 4...6), k = Int.random(in: 2...n)
-        var S = [[Int]](repeating: [Int](repeating: 0, count: k + 1), count: n + 1)
-        S[0][0] = 1
-        for i in 1...n {
-            for j in 1...min(i, k) {
-                S[i][j] = j * S[i - 1][j] + S[i - 1][j - 1]
-            }
-        }
-        let c = S[n][k]
-        let (ans, idx) = makeOptions(correct: c, span: c / 2 + 2)
-        return DiscreteMathQuestion(
-            question: "Stirling { \(n) ; \(k) } = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .stirlingSecondKind)
-    }
-
-    static func derangementQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 4...7)
-        var d = [Int](repeating: 0, count: n + 1)
-        d[0] = 1; d[1] = 0
-        for i in 2...n { d[i] = (i - 1) * (d[i - 1] + d[i - 2]) }
-        let c = d[n]
-        let (ans, idx) = makeOptions(correct: c, span: c / 3 + 1)
-        return DiscreteMathQuestion(
-            question: "Derangements of \(n) objects:",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .derangement)
-    }
-
-    static func gridPathsQuestion() -> DiscreteMathQuestion {
-        let m = Int.random(in: 2...6), n = Int.random(in: 2...6)
-        let c = fact(m + n) / (fact(m) * fact(n))
-        let (ans, idx) = makeOptions(correct: c, span: c / 3 + 5)
-        return DiscreteMathQuestion(
-            question: "Paths from (0,0) to (\(m),\(n)) moving R/U:",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .gridPaths)
-    }
-
-    // MARK: Additional
-
-    static func fibonacciNumberQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 5...12)
-        func fib(_ n: Int) -> Int {
-            var a = 0, b = 1
-            for _ in 0..<n { (a, b) = (b, a + b) }
-            return a
-        }
-        let c = fib(n)
-        let (ans, idx) = makeOptions(correct: c, span: c / 2 + 10)
-        return DiscreteMathQuestion(
-            question: "F_\(n) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .fibonacciNumber)
-    }
-
-    static func binomialTheoremCoefficientQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 5...10)
-        let k = Int.random(in: 1..<n)
-        let c = fact(n) / (fact(k) * fact(n - k))
-        let (ans, idx) = makeOptions(correct: c, span: c / 2 + 5)
-        return DiscreteMathQuestion(
-            question: "Coeff. of x^\(k) in (1+x)^\(n):",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "C(\(n),\(k))=\(c).",
-            topic: .binomialTheoremCoefficient)
-    }
-
-    // MARK: Graph theory
-
-    static func completeGraphEdges() -> DiscreteMathQuestion {
-        let n = Int.random(in: 4...15), c = n * (n - 1) / 2
-        let (ans, idx) = makeOptions(correct: c, span: c / 3)
-        return DiscreteMathQuestion(
-            question: "Edges in K_\(n)?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .completeGraphEdges)
-    }
-
-    static func completeBipartiteEdgesQuestion() -> DiscreteMathQuestion {
-        let m = Int.random(in: 2...10), n = Int.random(in: 2...10), c = m * n
-        let (ans, idx) = makeOptions(correct: c, span: 20)
-        return DiscreteMathQuestion(
-            question: "Edges in K_\(m),\(n)?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .completeBipartiteEdges)
-    }
-
-    static func completeDirectedEdgesQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 3...12), c = n * (n - 1)
-        let (ans, idx) = makeOptions(correct: c, span: c / 4 + 5)
-        return DiscreteMathQuestion(
-            question: "Arcs in complete digraph on \(n) vertices:",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .completeDirectedEdges)
-    }
-
-    static func degreeSum() -> DiscreteMathQuestion {
-        let e = Int.random(in: 5...30), c = 2 * e
-        let (ans, idx) = makeOptions(correct: c, span: 40)
-        return DiscreteMathQuestion(
-            question: "Sum of degrees for graph with \(e) edges?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .degreeSum)
-    }
-
-    static func treeEdgesQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 5...15), c = n - 1
-        let (ans, idx) = makeOptions(correct: c, span: 6)
-        return DiscreteMathQuestion(
-            question: "Edges in tree with \(n) vertices?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .treeEdges)
-    }
-
-    static func planarGraphEdgeBoundQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 4...12), c = 3 * n - 6
-        let (ans, idx) = makeOptions(correct: c, span: 10)
-        return DiscreteMathQuestion(
-            question: "Max edges in planar graph with \(n) vertices?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .planarGraphEdgeBound)
-    }
-
-    static func chromaticNumberCompleteQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 2...10)
-        let (ans, idx) = makeOptions(correct: n, span: 5)
-        return DiscreteMathQuestion(
-            question: "χ(K_\(n)) = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(n).",
-            topic: .chromaticNumberComplete)
-    }
-
-    static func hamiltonianCycleQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 2...10)
-        let options = ["Yes", "No", "Only if n≥3", "Only if n even"]
-        let idx = n >= 3 ? 0 : 1
-        return DiscreteMathQuestion(
-            question: "Does K_\(n) have a Hamiltonian cycle?",
-            answers: options,
-            correctAnswerIndex: idx,
-            explanation: "Kₙ is Hamiltonian iff n≥3.",
-            topic: .hamiltonianCycle)
-    }
-
-    static func eulerCircuitQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 3...10)
-        let options = ["Yes", "No", "Only if n even", "Only if n odd"]
-        let idx = n % 2 == 1 ? 0 : 1
-        return DiscreteMathQuestion(
-            question: "Does K_\(n) have an Euler circuit?",
-            answers: options,
-            correctAnswerIndex: idx,
-            explanation: "Degrees even ⇔ n odd.",
-            topic: .eulerCircuit)
-    }
-
-    static func hypercubeEdgesQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 2...8), c = n * (1 << (n - 1))
-        let (ans, idx) = makeOptions(correct: c, span: c / 3)
-        return DiscreteMathQuestion(
-            question: "Edges in Q_\(n)?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .hypercubeEdges)
-    }
-
-    static func spanningTreesCompleteQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 3...7), c = intPow(n, n - 2)
-        let (ans, idx) = makeOptions(correct: c, span: c / 3 + 5)
-        return DiscreteMathQuestion(
-            question: "Spanning trees in K_\(n)?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .spanningTreesComplete)
-    }
-
-    static func eulerPlanarFacesQuestion() -> DiscreteMathQuestion {
-        let n = Int.random(in: 4...10), e = Int.random(in: n...(3 * n - 6)), f = 2 - n + e
-        let (ans, idx) = makeOptions(correct: f, span: 10)
-        return DiscreteMathQuestion(
-            question: "Planar graph: n=\(n), e=\(e). Find faces f.",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(f).",
-            topic: .eulerFaces)
-    }
-
-    // MARK: Principles & logic
-
-    static func pigeonholeQuestion() -> DiscreteMathQuestion {
-        let m = Int.random(in: 4...8), k = Int.random(in: 3...5)
-        let objs = (k - 1) * m + 1
-        let options = ["\(k)", "\(k - 1)", "\(k + 1)", "\(m)"]
-        return DiscreteMathQuestion(
-            question: "\(objs) objects in \(m) boxes ⇒ min in some box?",
-            answers: options,
-            correctAnswerIndex: 0,
-            explanation: "⌈\(objs)/\(m)⌉=\(k).",
-            topic: .pigeonhole)
-    }
-
-    static func inclusionExclusion() -> DiscreteMathQuestion {
-        let a = Int.random(in: 20...60), b = Int.random(in: 20...60), i = Int.random(in: 5...15)
-        let u = a + b - i
-        let (ans, idx) = makeOptions(correct: u, span: 30)
-        return DiscreteMathQuestion(
-            question: "|A|=\(a), |B|=\(b), |A∩B|=\(i). |A∪B| = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(u).",
-            topic: .inclusionExclusion)
-    }
-
-    static func powerSetCardinality() -> DiscreteMathQuestion {
-        let n = Int.random(in: 3...12), c = 1 << n
-        let (ans, idx) = makeOptions(correct: c, span: c / 2)
-        return DiscreteMathQuestion(
-            question: "If |X|=\(n), what is |℘(X)|?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .powerSet)
-    }
-
-    static func cartesianProductQuestion() -> DiscreteMathQuestion {
-        let a = Int.random(in: 3...8), b = Int.random(in: 3...8), c = a * b
-        let (ans, idx) = makeOptions(correct: c, span: 10)
-        return DiscreteMathQuestion(
-            question: "|A|=\(a),|B|=\(b). |A×B| = ?",
-            answers: ans,
-            correctAnswerIndex: idx,
-            explanation: "\(c).",
-            topic: .cartesianProduct)
-    }
-
-    static func countableSet() -> DiscreteMathQuestion {
-        let qs = ["Integers", "Rationals", "Reals", "Pairs of integers"]
-        let idxs = [0, 1, 3]
-        let sel = idxs.randomElement()!
-        let options = ["Countable", "Uncountable", "Finite", "Empty"]
-        return DiscreteMathQuestion(
-            question: "The set of \(qs[sel]) is …?",
-            answers: options,
-            correctAnswerIndex: 0,
-            explanation: "Countable.",
-            topic: .countableSet)
-    }
-
-    static func contrapositiveLogic() -> DiscreteMathQuestion {
-        let opts = ["If not Q then not P", "If Q then P", "If not P then not Q", "P and not Q"]
-        return DiscreteMathQuestion(
-            question: "Contrapositive of “If P then Q”?",
+    private static func make(_ q: String,
+                             _ opts: [String],
+                             _ correct: Int,
+                             _ expl: String,
+                             _ top: Topic) -> DiscreteMathQuestion {
+        DiscreteMathQuestion(
+            question: q,
             answers: opts,
-            correctAnswerIndex: 0,
-            explanation: "¬Q→¬P.",
-            topic: .contrapositiveLogic)
+            correctAnswerIndex: correct,
+            explanation: expl,
+            topic: top)
     }
 
-    static func deMorganQuestion() -> DiscreteMathQuestion {
-        let opts = ["¬A ∪ ¬B", "¬A ∩ ¬B", "A ∪ B", "A ∩ B"]
-        return DiscreteMathQuestion(
-            question: "¬(A ∩ B) equals …?",
-            answers: opts,
-            correctAnswerIndex: 0,
-            explanation: "¬A ∪ ¬B.",
-            topic: .deMorgan)
+    // Swift fundamentals
+    static func variableKeywordQuestion() -> DiscreteMathQuestion {
+        make("Which keyword declares a mutable variable in Swift?",
+             ["var", "let", "func", "enum"], 0,
+             "`var` declares a variable whose value can change.", .variableKeyword)
+    }
+    static func constantKeywordQuestion() -> DiscreteMathQuestion {
+        make("Which keyword declares an immutable constant?",
+             ["let", "var", "static", "mutating"], 0,
+             "`let` creates a constant that cannot be reassigned.", .constantKeyword)
+    }
+    static func optionalsQuestion() -> DiscreteMathQuestion {
+        make("An optional in Swift represents …?",
+             ["A value that may be nil", "A generic type", "A type alias", "A protocol"], 0,
+             "Optionals wrap a value that can be present or `nil`.", .optionals)
+    }
+    static func closuresQuestion() -> DiscreteMathQuestion {
+        make("In Swift, a closure is …?",
+             ["A self-contained block of code", "A stored property", "A protocol extension", "A generic constraint"], 0,
+             "Closures are anonymous functions that can capture surrounding context.", .closures)
+    }
+    static func structsVsClassesQuestion() -> DiscreteMathQuestion {
+        make("Which statement about structs and classes is correct?",
+             ["Classes support inheritance", "Structs support inheritance", "Both are reference types", "Only structs have deinitializers"], 0,
+             "Classes are reference types and can inherit; structs are value types.", .structsVsClasses)
+    }
+    static func protocolsQuestion() -> DiscreteMathQuestion {
+        make("What does a protocol provide in Swift?",
+             ["Blueprint of methods and properties", "A concrete data type", "A way to handle errors", "A compile-time attribute"], 0,
+             "Protocols define requirements adopted by types.", .protocols)
+    }
+    static func genericsQuestion() -> DiscreteMathQuestion {
+        make("Generics in Swift enable …?",
+             ["Code that works with any type", "Runtime reflection", "Automatic memory management", "Dynamic dispatch only"], 0,
+             "Generics let you write flexible, reusable code that works with any type.", .generics)
+    }
+    static func extensionsFeatureQuestion() -> DiscreteMathQuestion {
+        make("Extensions in Swift allow you to …?",
+             ["Add new functionality to existing types", "Create new protocols", "Allocate memory manually", "Define new access levels"], 0,
+             "Extensions add methods, properties, or conformance without subclassing.", .extensionsFeature)
+    }
+    static func propertiesQuestion() -> DiscreteMathQuestion {
+        make("Which property stores a new value every time and doesn’t compute on access?",
+             ["Stored property", "Computed property", "Lazy property", "Type property"], 0,
+             "Stored properties keep values directly; computed properties calculate on access.", .properties)
+    }
+    static func subscriptsQuestion() -> DiscreteMathQuestion {
+        make("The `subscript` keyword enables …?",
+             ["Indexed access like array[key]", "Protocol conformance", "Generics specialization", "Automatic memory management"], 0,
+             "Subscripts give shortcut access to collection-like types.", .subscripts)
+    }
+    static func concurrencyQuestion() -> DiscreteMathQuestion {
+        make("Swift concurrency is primarily expressed with …?",
+             ["`async` and `await`", "`goto` statements", "Polling loops", "Global locks only"], 0,
+             "Structured concurrency uses `async`/`await` and task groups.", .concurrency)
+    }
+
+    // Additional Swift topics
+    static func functionsQuestion() -> DiscreteMathQuestion {
+        make("Which keyword defines a function in Swift?",
+             ["func", "fun", "def", "function"], 0,
+             "`func` introduces a reusable function.", .functions)
+    }
+    static func enumsQuestion() -> DiscreteMathQuestion {
+        make("Which keyword declares an enumeration?",
+             ["enum", "struct", "case", "option"], 0,
+             "`enum` defines a type with multiple cases.", .enums)
+    }
+    static func errorHandlingQuestion() -> DiscreteMathQuestion {
+        make("Which keyword marks a Swift function that can throw an error?",
+             ["throws", "throw", "try", "catch"], 0,
+             "`throws` indicates a function may propagate errors.", .errorHandling)
+    }
+    static func accessControlQuestion() -> DiscreteMathQuestion {
+        make("What is the most permissive access level in Swift?",
+             ["open", "public", "internal", "private"], 0,
+             "`open` allows use and subclassing outside the defining module.", .accessControl)
+    }
+    static func memoryManagementQuestion() -> DiscreteMathQuestion {
+        make("Swift uses which memory-management model?",
+             ["Automatic Reference Counting (ARC)", "Garbage Collection", "Manual Reference Counting", "Region-based Allocation"], 0,
+             "ARC automatically manages object lifetimes via reference counts.", .memoryManagement)
+    }
+
+    // Advanced language
+    static func propertyWrappersQuestion() -> DiscreteMathQuestion {
+        make("Which attribute defines a property wrapper?",
+             ["@propertyWrapper", "@wrapper", "@property", "@delegate"], 0,
+             "`@propertyWrapper` creates reusable get/set behavior.", .propertyWrappers)
+    }
+    static func resultBuildersQuestion() -> DiscreteMathQuestion {
+        make("Result builders in Swift enable …?",
+             ["Declarative DSL syntax", "Reference counting", "Error handling", "Memory copying"], 0,
+             "Result builders transform block syntax into chained calls (e.g., SwiftUI).", .resultBuilders)
+    }
+    static func actorsQuestion() -> DiscreteMathQuestion {
+        make("An `actor` in Swift is …?",
+             ["A reference type isolating mutable state", "A compile-time macro", "A value type for animations", "An Objective-C class"], 0,
+             "Actors serialize access to their internal state across tasks.", .actors)
+    }
+    static func distributedActorsQuestion() -> DiscreteMathQuestion {
+        make("Distributed actors differ from regular actors by …?",
+             ["Isolating state across process or network boundaries", "Allowing subclass inheritance", "Requiring Objective-C runtime", "Disabling async/await"], 0,
+             "Distributed actors communicate securely across boundaries.", .distributedActors)
+    }
+    static func asyncLetQuestion() -> DiscreteMathQuestion {
+        make("`async let` is used to …?",
+             ["Start a child task concurrently", "Define a constant", "Handle errors", "Create a macro"], 0,
+             "`async let` launches a child task and binds its result.", .asyncLet)
+    }
+    static func taskGroupsQuestion() -> DiscreteMathQuestion {
+        make("Task groups in Swift enable …?",
+             ["Dynamic, structured spawning of child tasks", "Global locks", "Manual thread pools", "Blocking synchronization"], 0,
+             "Task groups run many tasks concurrently and gather results.", .taskGroups)
+    }
+    static func macrosQuestion() -> DiscreteMathQuestion {
+        make("Swift macros provide …?",
+             ["Compile-time code generation", "Just-in-time compilation", "Manual memory management", "Exclusive Objective-C interop"], 0,
+             "Macros expand source code during compilation for boilerplate reduction.", .macros)
+    }
+    static func asyncSequenceQuestion() -> DiscreteMathQuestion {
+        make("An `AsyncSequence` differs from `Sequence` because …?",
+             ["It delivers values asynchronously over time", "It works only with arrays", "It runs only on main thread", "It cannot throw errors"], 0,
+             "`AsyncSequence` integrates with `for await` to consume values asynchronously.", .asyncSequence)
+    }
+    static func patternMatchingQuestion() -> DiscreteMathQuestion {
+        make("The `_` symbol in a `switch` case represents …?",
+             ["A wildcard pattern", "A default enum case", "Nil coalescing", "Type erasure"], 0,
+             "Wildcard `_` matches any remaining values.", .patternMatching)
+    }
+    static func typeInferenceQuestion() -> DiscreteMathQuestion {
+        make("Type inference in Swift allows …?",
+             ["Omitting explicit type annotations", "Runtime reflection only", "Dynamic typing", "Skipping compilation"], 0,
+             "The compiler deduces types from context.", .typeInference)
+    }
+    static func swiftPackageManagerQuestion() -> DiscreteMathQuestion {
+        make("Dependencies in Swift Package Manager are declared in …?",
+             ["Package.swift", "Podfile", "Cartfile", "build.gradle"], 0,
+             "`Package.swift` defines products, targets, and dependencies.", .swiftPackageManager)
+    }
+    static func doccQuestion() -> DiscreteMathQuestion {
+        make("DocC is primarily used to …?",
+             ["Generate API documentation", "Manage code signing", "Debug LLDB sessions", "Profile performance"], 0,
+             "DocC converts Markdown comments into HTML documentation.", .docc)
+    }
+    static func swiftUIQuestion() -> DiscreteMathQuestion {
+        make("In SwiftUI, UI is defined using …?",
+             ["Structs conforming to `View`", "Storyboards", "XIBs", "Nib files"], 0,
+             "SwiftUI views are value-type structs with declarative syntax.", .swiftUI)
+    }
+
+    // Xcode topics
+    static func xcodeProjectQuestion() -> DiscreteMathQuestion {
+        make("A single Xcode project can contain one or more …?",
+             ["targets", "schemes", "workspaces", "packages"], 0,
+             "Targets compile code/products like apps or frameworks.", .xcodeProject)
+    }
+    static func interfaceBuilderQuestion() -> DiscreteMathQuestion {
+        make("Which Xcode component lets you design UI visually?",
+             ["Interface Builder", "Instruments", "Source Control Navigator", "Console"], 0,
+             "Interface Builder works with storyboards, XIBs, and SwiftUI previews.", .interfaceBuilder)
+    }
+    static func xcodeDebuggerQuestion() -> DiscreteMathQuestion {
+        make("To pause execution at a specific line in Xcode you set a …?",
+             ["breakpoint", "checkpoint", "anchor", "flag"], 0,
+             "Breakpoints let you inspect state at runtime.", .xcodeDebugger)
+    }
+    static func unitTestingQuestion() -> DiscreteMathQuestion {
+        make("Which framework is used for unit testing in Xcode?",
+             ["XCTest", "JUnit", "Mocha", "NUnit"], 0,
+             "`XCTest` provides assertions, expectations, and test runners.", .unitTesting)
+    }
+    static func instrumentsQuestion() -> DiscreteMathQuestion {
+        make("The Instruments Time Profiler tool is primarily used to analyze …?",
+             ["CPU usage", "Memory leaks", "Network traffic", "Energy impact"], 0,
+             "Time Profiler samples stacks to measure CPU hotspots.", .instruments)
+    }
+    static func buildSettingsQuestion() -> DiscreteMathQuestion {
+        make("Compiler and linker flags are configured in Xcode's …?",
+             ["Build Settings tab", "General tab", "Info tab", "Build Phases tab"], 0,
+             "The Build Settings tab exposes granular configuration for each target.", .buildSettings)
+    }
+    static func sourceControlQuestion() -> DiscreteMathQuestion {
+        make("Which navigator shows commit history in Xcode?",
+             ["Source Control Navigator", "Debug Navigator", "Issue Navigator", "Trace Navigator"], 0,
+             "Source Control Navigator integrates Git operations.", .sourceControl)
+    }
+    static func signingCapabilitiesQuestion() -> DiscreteMathQuestion {
+        make("Code signing identities are configured in Xcode's …?",
+             ["Signing & Capabilities tab", "General tab", "Build Settings", "Preview canvas"], 0,
+             "Signing & Capabilities manages certificates and entitlements.", .signingCapabilities)
+    }
+    static func previewsQuestion() -> DiscreteMathQuestion {
+        make("SwiftUI previews rely on types conforming to …?",
+             ["PreviewProvider", "Scene", "App", "ObservableObject"], 0,
+             "`PreviewProvider` supplies sample views for live rendering.", .previews)
+    }
+    static func xcodeCloudQuestion() -> DiscreteMathQuestion {
+        make("Xcode Cloud primarily provides …?",
+             ["Continuous integration and delivery", "Memory profiling", "Visual UI design", "Static code analysis"], 0,
+             "Xcode Cloud automates building, testing, and distributing apps.", .xcodeCloud)
+    }
+    static func simulatorsQuestion() -> DiscreteMathQuestion {
+        make("Xcode Simulators let you …?",
+             ["Run apps on virtual devices", "Generate documentation", "Upload builds to TestFlight", "Edit storyboards"], 0,
+             "Simulators emulate hardware and OS versions for testing.", .simulators)
     }
 }

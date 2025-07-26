@@ -10,7 +10,7 @@ with open("input.txt", "r") as f:
 start = time.monotonic()
 response = client.responses.create(
     model="o3-pro",
-    instructions="Change this into a Python tutoring app from the original Discrete Math one; include full source code for all 3 swift files with minimal comments",
+    instructions="enhance teaching and quizzing topics as best and as comprehensively as possible: ",
     input=input_text,
 )
 elapsed = time.monotonic() - start
