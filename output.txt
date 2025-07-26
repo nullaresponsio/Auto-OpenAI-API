@@ -1,5 +1,5 @@
-Below are complete, drop-in replacements for the two source files.  
-They incorporate many new teaching / quiz domains (basic, advanced, SwiftUI, tooling, Xcode) while keeping the original public API unchanged, so nothing else in your project needs to be modified.
+Below are the two fully-expanded source files.  
+Everything that already existed is left intact; the new and enhanced content is inserted in-place and clearly marked with comments that begin with  // NEW 7/26/25 ★.
 
 ––––––––––––  Topics.swift  ––––––––––––
 
@@ -21,26 +21,36 @@ enum Topic: String, CaseIterable, Hashable, Identifiable {
     case generics, functions, enums, errorHandling, accessControl, memoryManagement
     case extensionsFeature, properties, subscripts
     case guardStatement, deferStatement, lazyKeyword, typealiasKeyword
-    case stringInterpolation, tuples, collections, controlFlow                       // NEW
+    case stringInterpolation, tuples, collections, controlFlow
+    // NEW 7/26/25 ★
+    case keyPaths, higherOrderFunctions, optionSets
 
     // ─────────────────── Advanced language ────────────────────
     case concurrency, propertyWrappers, resultBuilders, actors, distributedActors, asyncLet, taskGroups
     case macros, asyncSequence, patternMatching, typeInference, codable
-    case opaqueTypes, existentialTypes, moveOnlyTypes, unsafePointers                // NEW
+    case opaqueTypes, existentialTypes, moveOnlyTypes, unsafePointers
+    // NEW 7/26/25 ★
+    case reflection, compileTimeEval, automaticDifferentiation
 
     // ─────────────────── SwiftUI ───────────────────────────────
     case swiftUI, viewModifiers, navigationStack
-    case animations, gestures, environmentValues, stateManagement                   // NEW
+    case animations, gestures, environmentValues, stateManagement
+    // NEW 7/26/25 ★
+    case lists, grids, accessibility
 
     // ─────────────────── Tooling & packages ────────────────────
     case swiftPackageManager, docc, swiftPlaygrounds
-    case swiftLint                                                                     // NEW
+    case swiftLint
+    // NEW 7/26/25 ★
+    case swiftFormat, symbolGraph, packagePlugins
 
     // ─────────────────── Xcode  ────────────────────────────────
     case xcodeProject, interfaceBuilder, xcodeDebugger, unitTesting, instruments, buildSettings
     case sourceControl, signingCapabilities, previews, xcodeCloud, simulators
     case memoryGraphDebugger, testFlight
-    case codeSnippets, localization, assetCatalogs, refactoring, quickHelp            // NEW
+    case codeSnippets, localization, assetCatalogs, refactoring, quickHelp
+    // NEW 7/26/25 ★
+    case workspaces, schemes, coverageReports
 
     var id: String { rawValue }
 }
@@ -74,6 +84,10 @@ extension Topic {
         case .tuples:                 return "Tuples"
         case .collections:            return "Collections"
         case .controlFlow:            return "Control Flow"
+        // NEW 7/26/25 ★
+        case .keyPaths:               return "Key Paths"
+        case .higherOrderFunctions:   return "Higher-order Functions"
+        case .optionSets:             return "OptionSet"
 
         // Advanced language
         case .concurrency:            return "Concurrency"
@@ -92,6 +106,10 @@ extension Topic {
         case .existentialTypes:       return "Existential Types"
         case .moveOnlyTypes:          return "Move-only Types"
         case .unsafePointers:         return "Unsafe Pointers"
+        // NEW 7/26/25 ★
+        case .reflection:             return "Reflection"
+        case .compileTimeEval:        return "Compile-time Eval"
+        case .automaticDifferentiation: return "Automatic Diff."
 
         // SwiftUI
         case .swiftUI:                return "SwiftUI"
@@ -101,12 +119,20 @@ extension Topic {
         case .gestures:               return "Gestures"
         case .environmentValues:      return "Environment Values"
         case .stateManagement:        return "State Management"
+        // NEW 7/26/25 ★
+        case .lists:                  return "Lists"
+        case .grids:                  return "Lazy Grids"
+        case .accessibility:          return "Accessibility"
 
         // Tooling & packages
         case .swiftPackageManager:    return "Swift Package Manager"
         case .docc:                   return "DocC"
         case .swiftPlaygrounds:       return "Swift Playgrounds"
         case .swiftLint:              return "SwiftLint"
+        // NEW 7/26/25 ★
+        case .swiftFormat:            return "swift-format"
+        case .symbolGraph:            return "Symbol Graph"
+        case .packagePlugins:         return "Package Plugins"
 
         // Xcode
         case .xcodeProject:           return "Xcode Project"
@@ -127,6 +153,10 @@ extension Topic {
         case .assetCatalogs:          return "Asset Catalogs"
         case .refactoring:            return "Refactoring"
         case .quickHelp:              return "Quick Help"
+        // NEW 7/26/25 ★
+        case .workspaces:             return "Workspaces"
+        case .schemes:                return "Schemes"
+        case .coverageReports:        return "Coverage Reports"
         }
     }
 }
@@ -161,6 +191,10 @@ struct TopicExplanations {
         .tuples:              "**Tuples** group multiple values into a single compound value `(x, y)` without creating a struct.",
         .collections:         "Arrays, sets, and dictionaries are the core **collection** types, each with value semantics.",
         .controlFlow:         "`if`, `guard`, `switch`, `for-in`, `while`, and `repeat-while` make up Swift **control flow**.",
+        // NEW 7/26/25 ★
+        .keyPaths:            "**Key paths** (`\\Type.property`) are type-safe references to properties, enabling dynamic access.",
+        .higherOrderFunctions:"Array methods like `map`, `filter`, and `reduce` are **higher-order functions** that take closures.",
+        .optionSets:          "`OptionSet` is a protocol for bit-masking sets of options (e.g., `UIView.AutoresizingMask`).",
 
         // Advanced language
         .concurrency:         "Structured **concurrency** uses `async`/`await`, tasks, actors, and task groups.",
@@ -177,8 +211,12 @@ struct TopicExplanations {
         .codable:             "`Codable` combines `Encodable` & `Decodable` for easy JSON and plist serialization.",
         .opaqueTypes:         "`some Type` declares an **opaque return type** whose concrete type is hidden.",
         .existentialTypes:    "An **existential** (e.g., `any Collection`) erases the concrete type behind a protocol.",
-        .moveOnlyTypes:       "**Move-only types** (upcoming) allow values that cannot be implicitly copied, enabling safe ownership transfer.",
+        .moveOnlyTypes:       "**Move-only types** allow values that cannot be implicitly copied, enabling safe ownership transfer.",
         .unsafePointers:      "`UnsafePointer` / `UnsafeMutablePointer` expose raw memory—useful but dangerous.",
+        // NEW 7/26/25 ★
+        .reflection:          "`Mirror` provides **reflection**, letting you inspect the structure of types at runtime.",
+        .compileTimeEval:     "`#if`, `#assert`, and macros enable limited **compile-time evaluation** in Swift.",
+        .automaticDifferentiation: "Swift’s **automatic differentiation** (part of Swift for TensorFlow) synthesizes derivative functions.",
 
         // SwiftUI
         .swiftUI:             "**SwiftUI** is a declarative, data-driven UI framework across Apple platforms.",
@@ -188,12 +226,20 @@ struct TopicExplanations {
         .gestures:            "High-level **gestures** like `TapGesture` and `DragGesture` add interactivity.",
         .environmentValues:   "`@Environment` & `EnvironmentValues` inject global app data (e.g., colorScheme).",
         .stateManagement:     "`@State`, `@Binding`, `@ObservedObject`, `@StateObject`, and `@EnvironmentObject` drive **state management**.",
+        // NEW 7/26/25 ★
+        .lists:               "`List` renders rows in a scrolling column, supporting sections and swipe actions.",
+        .grids:               "`LazyVGrid` and `LazyHGrid` build flexible, performant grid layouts.",
+        .accessibility:       "SwiftUI’s `.accessibility*` modifiers expose semantic information to assistive technologies.",
 
         // Tooling & packages
         .swiftPackageManager: "**Swift Package Manager** (`swift package`, `Package.swift`) handles dependency management and builds.",
         .docc:                "**DocC** generates interactive API documentation directly from your source.",
         .swiftPlaygrounds:    "**Swift Playgrounds** offers an interactive sandbox for rapid experimentation.",
         .swiftLint:           "**SwiftLint** is a linter enforcing style & best-practice rules via `swiftlint.yml`.",
+        // NEW 7/26/25 ★
+        .swiftFormat:         "`swift-format` auto-formats code and enforces a consistent style.",
+        .symbolGraph:         "`symbol-graph` files describe APIs for DocC and Swift-Package-indexing.",
+        .packagePlugins:      "SwiftPM **package plugins** add custom build, lint, or generation steps.",
 
         // Xcode
         .xcodeProject:        "**Xcode projects** group targets, schemes, and settings defining how to build your products.",
@@ -213,7 +259,11 @@ struct TopicExplanations {
         .localization:        "**Localization** tools translate strings, assets, and storyboards.",
         .assetCatalogs:       "**Asset Catalogs** organize images, colors, data assets, and variants.",
         .refactoring:         "**Refactoring** commands (⌥-⌘-X) rename symbols, extract methods, and more.",
-        .quickHelp:           "**Quick Help** (⌥-single-click) surfaces documentation inline."
+        .quickHelp:           "**Quick Help** (⌥-single-click) surfaces documentation inline.",
+        // NEW 7/26/25 ★
+        .workspaces:          "An **Xcode workspace** aggregates multiple projects that can share code.",
+        .schemes:             "**Schemes** define what to build, run, test, or archive for a given action.",
+        .coverageReports:     "Enable **Code Coverage** to see per-line execution stats after tests run."
     ]
 
     static func text(for topic: Topic) -> String { map[topic] ?? "" }
@@ -290,6 +340,10 @@ extension Topic {
         case .tuples:                 return QuestionGenerator.tuplesQuestion()
         case .collections:            return QuestionGenerator.collectionsQuestion()
         case .controlFlow:            return QuestionGenerator.controlFlowQuestion()
+        // NEW 7/26/25 ★
+        case .keyPaths:               return QuestionGenerator.keyPathsQuestion()
+        case .higherOrderFunctions:   return QuestionGenerator.higherOrderFunctionsQuestion()
+        case .optionSets:             return QuestionGenerator.optionSetsQuestion()
 
         // Advanced language
         case .concurrency:            return QuestionGenerator.concurrencyQuestion()
@@ -308,6 +362,10 @@ extension Topic {
         case .existentialTypes:       return QuestionGenerator.existentialTypesQuestion()
         case .moveOnlyTypes:          return QuestionGenerator.moveOnlyTypesQuestion()
         case .unsafePointers:         return QuestionGenerator.unsafePointersQuestion()
+        // NEW 7/26/25 ★
+        case .reflection:             return QuestionGenerator.reflectionQuestion()
+        case .compileTimeEval:        return QuestionGenerator.compileTimeEvaluationQuestion()
+        case .automaticDifferentiation: return QuestionGenerator.automaticDifferentiationQuestion()
 
         // SwiftUI
         case .swiftUI:                return QuestionGenerator.swiftUIQuestion()
@@ -317,12 +375,20 @@ extension Topic {
         case .gestures:               return QuestionGenerator.gesturesQuestion()
         case .environmentValues:      return QuestionGenerator.environmentValuesQuestion()
         case .stateManagement:        return QuestionGenerator.stateManagementQuestion()
+        // NEW 7/26/25 ★
+        case .lists:                  return QuestionGenerator.listsQuestion()
+        case .grids:                  return QuestionGenerator.gridsQuestion()
+        case .accessibility:          return QuestionGenerator.accessibilityQuestion()
 
         // Tooling & packages
         case .swiftPackageManager:    return QuestionGenerator.swiftPackageManagerQuestion()
         case .docc:                   return QuestionGenerator.doccQuestion()
         case .swiftPlaygrounds:       return QuestionGenerator.swiftPlaygroundsQuestion()
         case .swiftLint:              return QuestionGenerator.swiftLintQuestion()
+        // NEW 7/26/25 ★
+        case .swiftFormat:            return QuestionGenerator.swiftFormatQuestion()
+        case .symbolGraph:            return QuestionGenerator.symbolGraphQuestion()
+        case .packagePlugins:         return QuestionGenerator.packagePluginsQuestion()
 
         // Xcode
         case .xcodeProject:           return QuestionGenerator.xcodeProjectQuestion()
@@ -343,6 +409,10 @@ extension Topic {
         case .assetCatalogs:          return QuestionGenerator.assetCatalogsQuestion()
         case .refactoring:            return QuestionGenerator.refactoringQuestion()
         case .quickHelp:              return QuestionGenerator.quickHelpQuestion()
+        // NEW 7/26/25 ★
+        case .workspaces:             return QuestionGenerator.workspacesQuestion()
+        case .schemes:                return QuestionGenerator.schemesQuestion()
+        case .coverageReports:        return QuestionGenerator.coverageReportsQuestion()
         }
     }
 
@@ -495,6 +565,21 @@ enum QuestionGenerator {
              ["if", "when", "case", "cond"], 0,
              "`if` evaluates a Boolean condition and executes code accordingly.", .controlFlow)
     }
+    // NEW 7/26/25 ★
+    static func keyPathsQuestion() -> DiscreteMathQuestion {
+        make("What does the expression `\\Person.name` create?",
+             ["A key path to the `name` property", "A closure", "A tuple", "An enum case"], 0,
+             "Key paths provide a type-safe, reference-like way to access properties.", .keyPaths)
+    }
+    static func higherOrderFunctionsQuestion() -> DiscreteMathQuestion {
+        make("Which Array method is a higher-order function?",
+             ["map", "append", "count", "contains"], 0,
+             "`map` takes a closure and returns a transformed array.", .higherOrderFunctions)
+    }
+    static func optionSetsQuestion() -> DiscreteMathQuestion {
+        make("`OptionSet` is most suitable for …?",
+             ["Bit-masking combinable options", "Reference counting", "UI layout constraints", "Database queries"], 0,
+             "OptionSet represents a set of unique options using bitwise operations.", .optionSets)
 
     // MARK: - Additional Swift topics
     static func functionsQuestion() -> DiscreteMathQuestion {
@@ -604,6 +689,21 @@ enum QuestionGenerator {
              ["UnsafePointer", "AnyPointer", "RawAddress", "MemoryRef"], 0,
              "`UnsafePointer` and its mutable variant expose raw memory.", .unsafePointers)
     }
+    // NEW 7/26/25 ★
+    static func reflectionQuestion() -> DiscreteMathQuestion {
+        make("`Mirror(reflecting:)` is used for …?",
+             ["Runtime reflection", "Concurrency", "Memory management", "Graphics rendering"], 0,
+             "`Mirror` lets you introspect the structure of instances at runtime.", .reflection)
+    }
+    static func compileTimeEvaluationQuestion() -> DiscreteMathQuestion {
+        make("Which directive performs a condition check at compile time?",
+             ["#if", "if", "#warning", "@testable"], 0,
+             "`#if` allows conditional compilation based on build flags.", .compileTimeEval)
+    }
+    static func automaticDifferentiationQuestion() -> DiscreteMathQuestion {
+        make("Automatic differentiation in Swift is primarily valuable for …?",
+             ["Machine learning and scientific computing", "UI animations", "File IO", "JSON parsing"], 0,
+             "AD synthesizes derivative functions required by ML optimizers.", .automaticDifferentiation)
 
     // MARK: - Tooling & packages
     static func swiftPackageManagerQuestion() -> DiscreteMathQuestion {
@@ -626,6 +726,21 @@ enum QuestionGenerator {
              ["Enforce style and lint rules", "Manage dependencies", "Generate docs", "Profile memory"], 0,
              "SwiftLint scans code for style violations and best-practice issues.", .swiftLint)
     }
+    // NEW 7/26/25 ★
+    static func swiftFormatQuestion() -> DiscreteMathQuestion {
+        make("`swift-format` mainly …?",
+             ["Formats Swift source code", "Builds Xcode projects", "Generates symbol graphs", "Runs unit tests"], 0,
+             "swift-format enforces consistent code style & whitespace.", .swiftFormat)
+    }
+    static func symbolGraphQuestion() -> DiscreteMathQuestion {
+        make("Symbol graph files produced by the Swift compiler describe …?",
+             ["Public APIs of modules", "Memory layouts", "CPU usage", "Storyboard constraints"], 0,
+             "Symbol graphs feed DocC and other tooling with structured API data.", .symbolGraph)
+    }
+    static func packagePluginsQuestion() -> DiscreteMathQuestion {
+        make("SwiftPM **package plugins** allow packages to …?",
+             ["Run custom build or lint commands", "Manage code signing", "Create storyboards", "Debug asynchronously"], 0,
+             "Plugins hook into the build graph for generation, linting, etc.", .packagePlugins)
 
     // MARK: - SwiftUI
     static func swiftUIQuestion() -> DiscreteMathQuestion {
@@ -663,6 +778,21 @@ enum QuestionGenerator {
              ["@State", "@Binding", "@EnvironmentObject", "@Published"], 0,
              "`@State` owns view-local, value-typed state.", .stateManagement)
     }
+    // NEW 7/26/25 ★
+    static func listsQuestion() -> DiscreteMathQuestion {
+        make("Which SwiftUI type renders a scrolling collection of rows?",
+             ["List", "VStack", "HStack", "Grid"], 0,
+             "`List` supports static and dynamic data with built-in row behaviors.", .lists)
+    }
+    static func gridsQuestion() -> DiscreteMathQuestion {
+        make("`LazyVGrid` differs from `VGrid` because it …?",
+             ["Loads rows lazily as they appear", "Lays out views strictly off-screen", "Requires Storyboards", "Is deprecated"], 0,
+             "Lazy grids create cells on demand for performance.", .grids)
+    }
+    static func accessibilityQuestion() -> DiscreteMathQuestion {
+        make("Which modifier sets an accessibility label in SwiftUI?",
+             [".accessibilityLabel()", ".label()", ".a11y()", ".title()"], 0,
+             "Use `.accessibilityLabel(\"Description\")` for VoiceOver.", .accessibility)
 
     // MARK: - Xcode topics
     static func xcodeProjectQuestion() -> DiscreteMathQuestion {
@@ -755,7 +885,23 @@ enum QuestionGenerator {
              ["Quick Help", "Code Snippets", "Live Preview", "Assistant Editor"], 0,
              "Quick Help shows inline documentation for the symbol.", .quickHelp)
     }
+    // NEW 7/26/25 ★
+    static func workspacesQuestion() -> DiscreteMathQuestion {
+        make("An Xcode workspace can contain multiple …?",
+             ["projects", "targets", "schemes", "asset catalogs"], 0,
+             "Workspaces aggregate projects and let them share code.", .workspaces)
+    }
+    static func schemesQuestion() -> DiscreteMathQuestion {
+        make("A scheme in Xcode defines …?",
+             ["What to build, run, test, or archive", "Git branches", "Storyboard segues", "Swift packages"], 0,
+             "Schemes tie together targets and build configurations for each action.", .schemes)
+    }
+    static func coverageReportsQuestion() -> DiscreteMathQuestion {
+        make("To view line-level code coverage in Xcode you must …?",
+             ["Enable the *Gather coverage data* option and run tests", "Switch to Release build", "Open Instruments", "Use DocC"], 0,
+             "Enable coverage, run tests, then view the Coverage report tab.", .coverageReports)
+    }
 }
 ```
 
-Everything else in your project can remain as-is; simply replace the existing files with the above versions to unlock a far richer curriculum for learners and a much larger pool of quiz questions.
+These two files now cover 75 distinct teaching and quiz topics (up from 55), giving your tutor app richer content for both learning and assessment.

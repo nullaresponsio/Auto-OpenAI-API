@@ -10,9 +10,14 @@ import ssl
 from email.message import EmailMessage
 from openai import OpenAI
 
+# constants
+INSTRUCTIONS = (
+    "enhance teaching and quizzing topics as best and as comprehensively as possible; "
+    "provide the Swift code for both files in full including unchanged parts:"
+)
+DEFAULT_MODEL = "o3-pro"
 MAX_RETRIES = 5
 RETRY_DELAY = 2
-
 PROGRAMMING_EXTENSIONS = {
     ".py", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".hpp",
     ".go", ".rs", ".rb", ".php", ".swift", ".sh", ".pl"
@@ -27,32 +32,34 @@ def diff_ratio(a: str, b: str) -> float:
     return 1.0 - difflib.SequenceMatcher(None, a, b).ratio()
 
 
-def request_with_retry(client: OpenAI, model: str, instructions: str, history: str,
-                       iteration: int) -> str:
+def request_with_retry(client: OpenAI, model: str, instructions: str,
+                       history: str, iteration: int) -> str:
     for attempt in range(MAX_RETRIES + 1):
-        start_time = time.time()
-        done_event = threading.Event()
+        start = time.time()
+        done = threading.Event()
 
         def timer():
-            while not done_event.is_set():
-                print(f"[DEBUG] Iter {iteration}, try {attempt + 1}: {int(time.time() - start_time)}s")
+            while not done.is_set():
+                print(f"[DEBUG] iter {iteration}, try {attempt + 1}: {int(time.time() - start)}s")
                 time.sleep(1)
 
         threading.Thread(target=timer, daemon=True).start()
         try:
-            print(f"[DEBUG] Iter {iteration}, try {attempt + 1}: sending request")
-            resp = client.responses.create(model=model, instructions=instructions, input=history)
-            done_event.set()
-            print(f"[DEBUG] Iter {iteration}, try {attempt + 1}: success")
+            print(f"[DEBUG] iter {iteration}, try {attempt + 1}: sending request")
+            resp = client.responses.create(model=model,
+                                           instructions=instructions,
+                                           input=history)
+            done.set()
+            print(f"[DEBUG] iter {iteration}, try {attempt + 1}: success")
             return resp.output_text
         except Exception as e:
-            done_event.set()
-            print(f"[ERROR] Iter {iteration}, try {attempt + 1}: {e}")
+            done.set()
+            print(f"[ERROR] iter {iteration}, try {attempt + 1}: {e}")
             if attempt == MAX_RETRIES:
                 raise
-            print(f"[DEBUG] Iter {iteration}: retrying in {RETRY_DELAY}s")
+            print(f"[DEBUG] iter {iteration}: retrying in {RETRY_DELAY}s")
             time.sleep(RETRY_DELAY)
-    raise RuntimeError("Unreachable")
+    raise RuntimeError("unreachable")
 
 
 def gather_input(paths):
@@ -70,87 +77,84 @@ def gather_input(paths):
 
 
 def parse_multi_file_output(text, input_paths):
-    sections = []
-    marker_re = re.compile(r"(?m)^\s*(?:#|//|;|'|\-{3,})\s*file\s*:\s*(.+)$", re.I)
-    matches = list(marker_re.finditer(text))
+    marker = re.compile(r"(?m)^\s*(?:#|//|;|'|\-{3,})\s*file\s*:\s*(.+)$", re.I)
+    matches = list(marker.finditer(text))
     if not matches:
         return None
+    sections = []
     for i, m in enumerate(matches):
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        fname = m.group(1).strip()
-        content = text[start:end].lstrip("\n")
-        sections.append((fname, content))
+        sections.append((m.group(1).strip(), text[start:end].lstrip("\n")))
     out_map = {}
     remaining = {os.path.basename(p): p for p in input_paths}
     for fname, content in sections:
         base = os.path.basename(fname)
         if base in remaining:
             out_map[remaining.pop(base)] = content
-    return out_map if out_map else None
+    return out_map or None
 
 
-def write_outputs(new_text, args, programming_mode):
-    if programming_mode and not args.no_direct:
-        if len(args.filepaths) == 1:
-            with open(args.filepaths[0], "w", encoding="utf-8") as f:
-                f.write(new_text)
-            print(f"[DEBUG] Updated {args.filepaths[0]}")
+def write_outputs(text, args, programming_mode):
+    if not programming_mode or args.no_direct:
+        return
+    if len(args.filepaths) == 1:
+        with open(args.filepaths[0], "w", encoding="utf-8") as f:
+            f.write(text)
+        print(f"[DEBUG] updated {args.filepaths[0]}")
+    else:
+        out_map = parse_multi_file_output(text, args.filepaths)
+        if out_map:
+            for path, content in out_map.items():
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                print(f"[DEBUG] updated {path}")
         else:
-            out_map = parse_multi_file_output(new_text, args.filepaths)
-            if out_map:
-                for path, content in out_map.items():
-                    with open(path, "w", encoding="utf-8") as f:
-                        f.write(content)
-                    print(f"[DEBUG] Updated {path}")
-            else:
-                print("[WARN] Could not match output to files on this iteration")
+            print("[WARN] could not match output to files on this iteration")
 
 
 def main():
     global MAX_RETRIES, RETRY_DELAY, PROGRAMMING_EXTENSIONS
 
-    parser = argparse.ArgumentParser(description="Iterative OpenAI generation tool.")
-    parser.add_argument("--instructions", required=True, help="Path to UTF-8 instructions file")
-    parser.add_argument("--filepaths", nargs="+", required=True, help="Input file(s) or dir(s) of UTF files")
-    parser.add_argument("--threshold", type=float, default=0.2, help="Stop when diff ratio < threshold")
-    parser.add_argument("--threshold-percent", type=float, help="Stop when diff ratio < threshold-percent / 100")
-    parser.add_argument("--model", default="o3-pro", help="OpenAI model name")
-    parser.add_argument("--email", help="Send progress email to this address")
-    parser.add_argument("--no-direct", action="store_true", help="Never overwrite inputs directly")
-    parser.add_argument("--limit", type=int, help="Max iterations")
-    parser.add_argument("--max-retries", type=int, default=MAX_RETRIES, help="Max retries for OpenAI calls")
-    parser.add_argument("--retry-delay", type=float, default=RETRY_DELAY, help="Seconds between retries")
-    parser.add_argument("--extensions", help="Comma-separated programming extensions (overrides default)")
-    parser.add_argument("--api-key", help="OpenAI API key (overrides env)")
-    parser.add_argument("--debug-dir", help="Directory to write debug responses (default: debug_<base>)")
-    args = parser.parse_args()
+    p = argparse.ArgumentParser()
+    p.add_argument("--filepaths", nargs="+", required=True)
+    p.add_argument("--threshold", type=float, default=0.2)
+    p.add_argument("--threshold-percent", type=float)
+    p.add_argument("--model", default=DEFAULT_MODEL)
+    p.add_argument("--email")
+    p.add_argument("--no-direct", action="store_true")
+    p.add_argument("--limit", type=int)
+    p.add_argument("--max-retries", type=int, default=MAX_RETRIES)
+    p.add_argument("--retry-delay", type=float, default=RETRY_DELAY)
+    p.add_argument("--extensions")
+    p.add_argument("--api-key")
+    p.add_argument("--debug-dir")
+    args = p.parse_args()
 
     MAX_RETRIES = args.max_retries
     RETRY_DELAY = args.retry_delay
     if args.extensions:
-        PROGRAMMING_EXTENSIONS = {e if e.startswith('.') else f'.{e}' for e in args.extensions.split(',')}
+        PROGRAMMING_EXTENSIONS = {e if e.startswith('.') else f'.{e}'
+                                  for e in args.extensions.split(',')}
 
-    if len(args.filepaths) > 1 and not args.no_direct:
-        print("[INFO] Multiple inputs detected; will attempt per-file writes")
+    threshold = (args.threshold_percent / 100
+                 if args.threshold_percent is not None else args.threshold)
 
-    threshold = (args.threshold_percent / 100 if args.threshold_percent is not None else args.threshold)
+    programming_mode = all(is_programming_file(p) for p in args.filepaths)
 
-    with open(args.instructions, encoding="utf-8") as ins:
-        instructions = ins.read()
-
-    if len(args.filepaths) == 1 and is_programming_file(args.filepaths[0]):
-        instructions += ("\n\nIMPORTANT: Only return the complete, revised source code "
-                         "file. Do not include any extra text or explanations.")
+    instructions = INSTRUCTIONS
+    if len(args.filepaths) == 1 and programming_mode:
+        instructions += ("\n\nIMPORTANT: Only return the complete, revised source "
+                         "code file. Do not include any extra text or explanations.")
 
     current_text = gather_input(args.filepaths)
     history_text = current_text
+
     client = OpenAI(api_key=args.api_key or os.environ.get("OPENAI_API_KEY"))
 
     base = os.path.splitext(os.path.basename(args.filepaths[0]))[0]
     debug_dir = args.debug_dir or f"debug_{base}"
     os.makedirs(debug_dir, exist_ok=True)
-    iteration = 1
 
     email_server = None
     email_user = None
@@ -159,33 +163,34 @@ def main():
         email_pwd = os.environ.get("GMAIL_APP_PASSWORD")
         if email_user and email_pwd:
             try:
-                email_server = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context())
+                email_server = smtplib.SMTP_SSL("smtp.gmail.com", 465,
+                                                context=ssl.create_default_context())
                 email_server.login(email_user, email_pwd)
-                print("[DEBUG] Logged into Gmail SMTP")
+                print("[DEBUG] logged into Gmail SMTP")
             except Exception as e:
                 print(f"[WARN] Gmail login failed: {e}")
 
-    programming_mode = all(is_programming_file(p) for p in args.filepaths)
-
+    iteration = 1
     while True:
         if args.limit is not None and iteration > args.limit:
-            print(f"[DEBUG] Iteration limit {args.limit} reached, stopping")
+            print(f"[DEBUG] iteration limit {args.limit} reached, stopping")
             break
         try:
-            new_text = request_with_retry(client, args.model, instructions, history_text, iteration)
+            new_text = request_with_retry(client, args.model, instructions,
+                                          history_text, iteration)
         except Exception as e:
-            print(f"[FATAL] Iter {iteration}: {e}")
+            print(f"[FATAL] iter {iteration}: {e}")
             break
 
         dbg_path = os.path.join(debug_dir, f"{base}_iter_{iteration}.txt")
         with open(dbg_path, "w", encoding="utf-8") as df:
             df.write(new_text)
-        print(f"[DEBUG] Iter {iteration}: response written to {dbg_path}")
+        print(f"[DEBUG] iter {iteration}: response written to {dbg_path}")
 
-        write_outputs(new_text, args, programming_mode)  # direct overwrite each loop
+        write_outputs(new_text, args, programming_mode)
 
         ratio = diff_ratio(current_text, new_text)
-        print(f"[DEBUG] Iter {iteration}: diff_ratio={ratio:.6f}")
+        print(f"[DEBUG] iter {iteration}: diff_ratio={ratio:.6f}")
 
         if email_server:
             try:
@@ -193,15 +198,15 @@ def main():
                 msg["From"] = email_user
                 msg["To"] = args.email
                 msg["Subject"] = f"Iteration {iteration} completed (ratio {ratio:.6f})"
-                msg.set_content(f"Response saved to {dbg_path}\n\nFirst 500 chars:\n{new_text[:500]}")
+                msg.set_content(f"Response saved to {dbg_path}\n\nFirst 500 chars:\n"
+                                f"{new_text[:500]}")
                 email_server.send_message(msg)
-                print("[DEBUG] Email sent")
+                print("[DEBUG] email sent")
             except Exception as e:
-                print(f"[WARN] Email send failed: {e}")
+                print(f"[WARN] email send failed: {e}")
 
         if ratio < threshold:
-            print(f"[DEBUG] Iter {iteration}: threshold met, stopping")
-            current_text = new_text
+            print(f"[DEBUG] iter {iteration}: threshold met, stopping")
             break
 
         current_text = new_text

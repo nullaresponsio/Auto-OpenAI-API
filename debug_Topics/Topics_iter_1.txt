@@ -1,134 +1,207 @@
-Below is a “menu of upgrades” you can cherry-pick from.  Nothing here changes your public API, so existing screens still compile, but every item deepens either the teaching value or the quiz engine’s replay-ability.
+Below is a sketch of how you might evolve your existing “flat” Topic / Question system into a richer, more flexible teaching-and-quizzing framework.  You can pick and choose which pieces to adopt.
 
-───────────────── 1.  Broaden the Curriculum ─────────────────
-Add the most requested Swift/iOS subjects that are currently missing.
+1. Introduce richer topic metadata  
+   • Group topics into sections and subtopics.  
+   • For each topic, supply:  
+     – A human-readable overview  
+     – One or more illustrative code examples  
+     – Common pitfalls  
+     – Further reading links  
 
-Swift Core
-• optionalsDeepDive                    – Optional chaining, nil-coalescing, implicitly unwrapped
-• associatedTypes                      – Protocols with associated types, “some vs any”
-• keyPaths                             – WritableKeyPath, ReferenceWritableKeyPath
-• regularExpressions                   – Regex literals / first-class capture lists
-• unicodeScalars                       – Character vs UnicodeScalar, extended grapheme clusters
+2. Support multiple question types & difficulty levels  
+   • Replace your one-size-fits-all DiscreteMathQuestion with a generic QuizItem that can be:  
+     – Multiple-choice  
+     – Fill-in-the-blank  
+     – Code-completion  
+     – True/False  
+     – Flashcard (prompt → answer only)  
+   • Tag each question with difficulty (enum Easy/Medium/Hard), learning objectives, prerequisites, hints  
 
-Concurrency & Reactive
-• structuredConcurrencyPatterns        – Cancellation, child-task hierarchy, priority
-• sendable                             – @Sendable closures, Sendable conformance
-• combine                              – Publishers, Operators, Subscribers
-• continuations                        – CheckedContinuation, AsyncStream
+3. Build an adaptive QuizFactory  
+   • Let callers request: “5 easy questions on control flow”  
+   • Track user performance per topic, adjust difficulty  
 
-SwiftUI
-• layoutSystem                         – Layout protocol, GeometryReader, Spacer
-• observation                          – Observation framework replacement for @ObservableObject
-• advancedAnimations                   – TimelineView, PhaseAnimator, key-frame animations
-• drawingGroup                         – GPU rasterization hints, vector drawing
+4. Example code
 
-Core iOS frameworks
-• coreData                             – NSPersistentContainer, fetch requests, lightweight migration
-• coreAnimation                        – CALayer hierarchy, implicit vs explicit animations
-• accessibility                        – VoiceOver, Dynamic Type, semantic UI
-• pushNotifications                    – UNUserNotificationCenter, APNs device token flow
-• networking                           – URLSession, async/await, background transfers
-• persistence                          – Codable + FileManager, Keychain, NSUserDefaults
+```swift
+import Foundation
+import SwiftUI
 
-Testing & CI
-• uiTesting                            – XCUIApplication, recording, predicates
-• performanceTesting                   – measure(metrics:), XCTClockMetric
-• mocking                              – protocol‐based mocks, async sequences in tests
-• continuousDelivery                   – Fastlane, notarization, TestFlight groups
-
-Tooling
-• instrumentsLeaks                     – Leaks template, cycle detection
-• shaderDebugger                       – Metal frame capture, GPU counters
-• accessibilityInspector               – Audit issues, color contrast
-• profilerSwiftSyntax                  – `swift syntax` CLI, symbol graphs
-
-───────────────── 2.  Layered Difficulty & Bloom’s Taxonomy ─────────────────
-Add metadata so a topic can be served at multiple cognitive levels.
-
-enum Difficulty: String, CaseIterable { case recall, apply, synthesize }
-
-struct DiscreteMathQuestion { … let difficulty: Difficulty }
-
-• Upgrade the generators by supplying easy (keyword), medium (snippet gap-fill), and hard (reason-about-bug) flavours.  
-• In QuizFactory.generate(count:for:) accept a target difficulty distribution; beginners get mostly “recall”, advanced users see more “synthesize”.
-
-───────────────── 3.  Richer Question Types ─────────────────
-1. Code-order shuffle  
-   – Present 4 code lines and ask the learner to drag them into the correct order.  
-2. Hot spot  
-   – Show a snippet and ask which line will crash/compile-fail.  
-3. “Explain this output”  
-   – Display a tiny program and ask for the printed result (great for optionals, value vs reference, capture lists).  
-4. True/False lightning round  
-   – Extremely fast review mode that uses the same engine but two buttons; turn on when `count` > 30.
-
-Represent them with:
-
-enum QuizQuestion {  
-    case multiple(…)  
-    case submit(…)  
-    case reorder(ReorderQuestion)  
-    case hotspot(HotSpotQuestion)  
-    case tf(TrueFalseQuestion)  
+// 1. A little hierarchy
+enum Section: String, CaseIterable {
+  case fundamentals, advancedLanguage, swiftUI, tooling, xcode
 }
 
-Each new case conforms to Identifiable exactly as your existing enum does, so the UI needs only another switch arm in the row view.
-
-───────────────── 4.  Spaced-Repetition Scoring ─────────────────
-Persist per-Topic “ease” and “nextReviewDate” with Codable + AppStorage (or a tiny CoreData model).  
-• After the user answers, compute a SM-2 score and reschedule that card.  
-• QuizFactory.generate() then first pulls any due cards before filling the remainder with fresh ones.
-
-───────────────── 5.  Inline Playground-Ready Examples ─────────────────
-Add an “example” string (Markdown + runnable snippet) next to every explanation:
-
-extension Topic { var example: String }
-
-Example for optionalsDeepDive:
-"""
-var pet: String? = "Turtle"      // Optional String
-print(pet?.count ?? 0)           // safely unwraps => 6
-"""
-
-Surface it in a collapsible disclosure group under each explanation view and add a “Copy to Playground” button.
-
-───────────────── 6.  Micro-Achievements & Progress Charts ─────────────────
-• Track streaks, fastest perfect round, topics mastered (= 3 consecutive correct answers at synthesize level).  
-• Render with Swift Charts: Topic vs mastery % stacked bar.
-
-───────────────── 7.  Lint & Localization Readiness ─────────────────
-• Mark every user-visible string with NSLocalizedString so the same enum powers other languages.  
-• Run SwiftLint’s “missing_docs” and “cyclomatic_complexity” rules to keep question generators under control.
-
-───────────────── 8.  Example Code Snippet (New Topic + Question) ─────────────────
-1. Add to Topic enum:
-case keyPaths
-
-2. Explanation map:
-.keyPaths : "**Key paths** (`\\Type.property`) provide type-safe property references usable for KVO, binding, Combine, and sorting."
-
-3. Generator:
-
-static func keyPathsQuestion() -> DiscreteMathQuestion {
-    make(
-      "Which expression creates a WritableKeyPath from `Person` to `String`?",
-      ["\\Person.name", "Person.name", "#keyPath(Person.name)", "\\Person.self.name"],
-      0,
-      "`\\Person.name` is a compile-time checked WritableKeyPath<Person,String>.",
-      .keyPaths)
+// 2. Rich topic descriptor
+struct TopicDetail: Identifiable, Hashable {
+  let id: Topic
+  let section: Section
+  let title: String
+  let overview: String
+  let codeExamples: [String]
+  let commonPitfalls: [String]
+  let furtherReading: [URL]
 }
 
-Hook it up in the dispatcher and you’re done.
+// 3. A generic QuizItem
+enum QuizType {
+  case multipleChoice(options: [String])
+  case fillInTheBlank
+  case codeCompletion(codeTemplate: String)
+  case trueFalse
+  case flashcard
+}
 
-───────────────── 9.  Safety Nets ─────────────────
-• Add unit tests that iterate over every Topic and assert `generated().answers.indices` contains `correctAnswerIndex`.  
-• Assert explanations & titles are non-empty to prevent UI placeholders.
+enum Difficulty: String, CaseIterable {
+  case easy, medium, hard
+}
 
-───────────────── 10.  Roadmap Snapshot ─────────────────
-Phase 1 (quick wins): new topics + explanation examples (1,8,9)  
-Phase 2 (engagement): richer question types & difficulty (2,3)  
-Phase 3 (retention): spaced repetition & achievements (4,6)  
+struct QuizItem: Identifiable, Hashable {
+  let id: UUID
+  let topic: Topic
+  let type: QuizType
+  let prompt: String
+  let correctAnswer: String
+  let explanation: String
+  let difficulty: Difficulty
+  let hints: [String]
+  let prerequisites: [Topic]
+  let objectives: [String]
+}
 
-Pick whichever phases match your schedule - the code base is already modular, so each enhancement is self-contained.
+// 4. Store topic details in one place
+struct TopicRepository {
+  static let details: [TopicDetail] = [
+    .init(
+      id: .optionals,
+      section: .fundamentals,
+      title: "Optionals",
+      overview:
+        """
+        An Optional<T> either wraps a value of type T or `nil`.  
+        You must unwrap safely (using `if let`, `guard let` or `?` chaining) before use.
+        """,
+      codeExamples: [
+        """
+        var name: String? = "Alice"
+        if let unwrapped = name {
+          print("Hello, \\(unwrapped)")
+        }
+        """,
+        """
+        func greet(_ name: String?) {
+          print("Hello, \\(name ?? "Guest")")
+        }
+        """
+      ],
+      commonPitfalls: [
+        "Forgetting to unwrap and causing a runtime crash.",
+        "Force-unwrapping (`!`) without checking for `nil`.",
+      ],
+      furtherReading: [
+        URL(string: "https://docs.swift.org/swift-book/LanguageGuide/TheBasics.html#ID330")!
+      ]
+    ),
+    // … other topics …
+  ]
+}
 
-Happy teaching!
+// 5. Generate a variety of question types
+enum QuestionFactory {
+  static func optionalFlashcard() -> QuizItem {
+    QuizItem(
+      id: .init(),
+      topic: .optionals,
+      type: .flashcard,
+      prompt: "What is an Optional in Swift?",
+      correctAnswer: "A type that wraps a value or nil; must be unwrapped before use.",
+      explanation: TopicRepository.details
+        .first { $0.id == .optionals }!
+        .overview,
+      difficulty: .easy,
+      hints: ["It’s indicated by a “?” after the type."],
+      prerequisites: [],
+      objectives: ["Understand optionality", "Safe unwrapping"]
+    )
+  }
+
+  static func optionalMultipleChoice() -> QuizItem {
+    QuizItem(
+      id: .init(),
+      topic: .optionals,
+      type: .multipleChoice(options: [
+        "A type that can hold nil",
+        "A generic container",
+        "A protocol constraint",
+        "A reference to a dictionary"
+      ]),
+      prompt: "What does `String?` mean in Swift?",
+      correctAnswer: "A type that can hold nil",
+      explanation: "Adding `?` makes the type optional: it may contain a `String` or be `nil`.",
+      difficulty: .easy,
+      hints: ["It’s not a protocol."],
+      prerequisites: [],
+      objectives: ["Recognize optional syntax"]
+    )
+  }
+
+  static func optionalFillInTheBlank() -> QuizItem {
+    QuizItem(
+      id: .init(),
+      topic: .optionals,
+      type: .fillInTheBlank,
+      prompt: "Complete the unwrapping pattern:\n\n```swift\nguard let name = user.name ___ { return }\n```",
+      correctAnswer: "else",
+      explanation: "A `guard let … else` block exits if the optional is nil.",
+      difficulty: .medium,
+      hints: ["Guard always has an else clause."],
+      prerequisites: [.optionals, .guardStatement],
+      objectives: ["Write guard-let unwrapping"]
+    )
+  }
+
+  // … more factories per topic …
+}
+
+// 6. Adaptive Quiz Builder
+struct AdaptiveQuizBuilder {
+  /// request N questions from given topics, balanced by difficulty
+  static func makeQuiz(
+    topics: [Topic],
+    count: Int,
+    maxDifficulty: Difficulty = .hard
+  ) -> [QuizItem] {
+    var pool: [QuizItem] = []
+    for t in topics {
+      // collect from each question factory via reflection or manual mapping…
+      switch t {
+      case .optionals:
+        pool += [ QuestionFactory.optionalFlashcard(),
+                  QuestionFactory.optionalMultipleChoice(),
+                  QuestionFactory.optionalFillInTheBlank() ]
+      // …
+      default: break
+      }
+    }
+    // filter by difficulty
+    let filtered = pool.filter { $0.difficulty.rawValue <= maxDifficulty.rawValue }
+    return Array(filtered.shuffled().prefix(count))
+  }
+}
+```
+
+— With this in place you can:
+
+• Render a fully featured “topic page” by pulling from `TopicRepository.details` (overview, code examples, pitfalls)  
+• Offer multiple question formats (MCQ, fill-in-blank, flashcards, code-completion)  
+• Tag questions for difficulty, hints, prerequisites to drive an adaptive learning path  
+• Collect performance metrics and tune future quizzes
+
+This model scales to dozens of topics, and you can extend it to support:
+
+• Code execution playground questions  
+• Interactive drag-&-drop or reorder-the-lines  
+• Image or diagram-based prompts  
+• Richer analytics (time per question, hint usage, mastery curves)  
+
+All while keeping your original `Topic` enum as the single source of truth for topic identifiers.
