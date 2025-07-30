@@ -9,7 +9,7 @@ from openai import OpenAI
 
 model = "o3-pro"
 instructions = (
-    "modularize this file in a robust way: "
+    "without losing any capabilities, enhance the fuzzing, stealth, and evasion capabilities of scanner.py and provide the fully updated scanner.py file in full. Drastically enhanced fuzzing is the most important thing to improve and be as creative as you can for max effectiveness: "
 )
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
